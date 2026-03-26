@@ -6,6 +6,10 @@ description = "Auto-managed project knowledge wiki for AI-assisted development"
 license = "MIT OR Apache-2.0"
 rust-version = "1.85.0"
 repository = "https://github.com/agencedebord/project-wiki"
+homepage = "https://github.com/agencedebord/project-wiki"
+readme = "README.md"
+keywords = ["wiki", "documentation", "cli", "knowledge-base", "ai"]
+categories = ["command-line-utilities", "development-tools"]
 
 [[bin]]
 name = "project-wiki"
