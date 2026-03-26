@@ -2,8 +2,8 @@
 
 **Auto-managed project knowledge wiki for AI-assisted development.**
 
-[![Crates.io](https://img.shields.io/crates/v/project-wiki)](https://crates.io/crates/project-wiki)
-[![License](https://img.shields.io/crates/l/project-wiki)](LICENSE-MIT)
+[![CI](https://github.com/agencedebord/project-wiki/actions/workflows/ci.yml/badge.svg)](https://github.com/agencedebord/project-wiki/actions/workflows/ci.yml)
+[![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue)](LICENSE-MIT)
 [![Rust](https://img.shields.io/badge/rust-1.85%2B-blue)](https://www.rust-lang.org)
 
 ## The Problem
