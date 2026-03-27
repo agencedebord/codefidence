@@ -26,7 +26,11 @@ fn init_creates_expected_directory_structure() {
 
     // Templates
     assert!(dir.path().join(".wiki/_templates").is_dir());
-    assert!(dir.path().join(".wiki/_templates/domain-overview.md").exists());
+    assert!(
+        dir.path()
+            .join(".wiki/_templates/domain-overview.md")
+            .exists()
+    );
     assert!(dir.path().join(".wiki/_templates/decision.md").exists());
 
     // Domain and decision directories
@@ -37,8 +41,16 @@ fn init_creates_expected_directory_structure() {
     assert!(dir.path().join(".claude/commands").is_dir());
     assert!(dir.path().join(".claude/commands/wiki-consult.md").exists());
     assert!(dir.path().join(".claude/commands/wiki-update.md").exists());
-    assert!(dir.path().join(".claude/commands/wiki-add-context.md").exists());
-    assert!(dir.path().join(".claude/commands/wiki-add-decision.md").exists());
+    assert!(
+        dir.path()
+            .join(".claude/commands/wiki-add-context.md")
+            .exists()
+    );
+    assert!(
+        dir.path()
+            .join(".claude/commands/wiki-add-decision.md")
+            .exists()
+    );
 }
 
 #[test]
@@ -74,7 +86,11 @@ fn init_with_source_files_runs_scan_and_creates_domains() {
     cmd_in(&dir).arg("init").assert().success();
 
     // The scan should have detected the "billing" domain
-    assert!(dir.path().join(".wiki/domains/billing/_overview.md").exists());
+    assert!(
+        dir.path()
+            .join(".wiki/domains/billing/_overview.md")
+            .exists()
+    );
 }
 
 #[test]
@@ -97,7 +113,11 @@ fn init_no_scan_skips_domain_creation() {
         .filter_map(|e| e.ok())
         .filter(|e| e.file_name() != ".gitkeep")
         .collect();
-    assert!(entries.is_empty(), "Expected no domain dirs, found {:?}", entries);
+    assert!(
+        entries.is_empty(),
+        "Expected no domain dirs, found {:?}",
+        entries
+    );
 }
 
 #[test]
@@ -294,9 +314,14 @@ fn add_domain_creates_the_domain() {
         .success()
         .stderr(predicate::str::contains("billing"));
 
-    assert!(dir.path().join(".wiki/domains/billing/_overview.md").exists());
+    assert!(
+        dir.path()
+            .join(".wiki/domains/billing/_overview.md")
+            .exists()
+    );
 
-    let content = fs::read_to_string(dir.path().join(".wiki/domains/billing/_overview.md")).unwrap();
+    let content =
+        fs::read_to_string(dir.path().join(".wiki/domains/billing/_overview.md")).unwrap();
     assert!(content.contains("domain: billing"));
 }
 
@@ -330,15 +355,17 @@ fn add_decision_creates_decision_file() {
     let entries: Vec<_> = fs::read_dir(&decisions_dir)
         .unwrap()
         .filter_map(|e| e.ok())
-        .filter(|e| {
-            e.path().extension().map_or(false, |ext| ext == "md")
-        })
+        .filter(|e| e.path().extension().map_or(false, |ext| ext == "md"))
         .collect();
 
     assert_eq!(entries.len(), 1, "Expected exactly one decision file");
 
     let filename = entries[0].file_name().to_string_lossy().to_string();
-    assert!(filename.contains("use-stripe"), "Filename '{}' should contain 'use-stripe'", filename);
+    assert!(
+        filename.contains("use-stripe"),
+        "Filename '{}' should contain 'use-stripe'",
+        filename
+    );
 
     let content = fs::read_to_string(entries[0].path()).unwrap();
     assert!(content.contains("Use Stripe for payments"));
@@ -371,7 +398,13 @@ fn add_context_with_domain_flag() {
 
     // Add context to it
     cmd_in(&dir)
-        .args(["add", "context", "--domain", "auth", "Passwords must be hashed with bcrypt"])
+        .args([
+            "add",
+            "context",
+            "--domain",
+            "auth",
+            "Passwords must be hashed with bcrypt",
+        ])
         .assert()
         .success()
         .stderr(predicate::str::contains("Added context"));

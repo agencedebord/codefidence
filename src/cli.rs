@@ -173,9 +173,7 @@ pub async fn run() -> Result<()> {
 
         Commands::Add { what } => match what {
             AddCommands::Domain { name } => wiki::add::domain(&name),
-            AddCommands::Context { domain, text } => {
-                wiki::add::context(&text, domain.as_deref())
-            }
+            AddCommands::Context { domain, text } => wiki::add::context(&text, domain.as_deref()),
             AddCommands::Decision { text } => wiki::add::decision(&text),
         },
 
@@ -191,7 +189,9 @@ pub async fn run() -> Result<()> {
         Commands::Confirm { target } => wiki::manage::confirm(&target),
         Commands::Deprecate { target } => wiki::manage::deprecate(&target),
         Commands::RenameDomain { old, new } => wiki::manage::rename_domain(&old, &new),
-        Commands::Import { folder, domain } => wiki::manage::import_folder(&folder, domain.as_deref()),
+        Commands::Import { folder, domain } => {
+            wiki::manage::import_folder(&folder, domain.as_deref())
+        }
 
         Commands::Vectors { action } => {
             let wiki_dir = Path::new(".wiki");
@@ -201,7 +201,9 @@ pub async fn run() -> Result<()> {
                     let results = wiki::vectors::search(wiki_dir, &query, top_k)?;
                     if results.is_empty() {
                         ui::coming_soon("semantic search");
-                        ui::info("Semantic search will be available in v2.0. Use `project-wiki search` for keyword search.");
+                        ui::info(
+                            "Semantic search will be available in v2.0. Use `project-wiki search` for keyword search.",
+                        );
                     } else {
                         for result in &results {
                             eprintln!("  {}", result);

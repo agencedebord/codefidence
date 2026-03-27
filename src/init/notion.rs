@@ -5,7 +5,7 @@ use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use futures::stream::{self, StreamExt};
 use serde::{Deserialize, Serialize};
 use tokio::sync::Semaphore;
@@ -56,11 +56,7 @@ const DETAIL_CONCURRENCY: usize = 5;
 
 // ─── Main entry point ───
 
-pub async fn run(
-    notion_url: &str,
-    resume: bool,
-    wiki_dir: &Path,
-) -> Result<Vec<NotionDomainInfo>> {
+pub async fn run(notion_url: &str, resume: bool, wiki_dir: &Path) -> Result<Vec<NotionDomainInfo>> {
     ui::action("Importing from Notion database");
     eprintln!();
 
@@ -132,10 +128,7 @@ pub async fn run(
     let mut domain_map: HashMap<String, Vec<NotionTicket>> = HashMap::new();
     for ticket in &enriched_tickets {
         let domain = map_ticket_to_domain(ticket, &existing_domains);
-        domain_map
-            .entry(domain)
-            .or_default()
-            .push(ticket.clone());
+        domain_map.entry(domain).or_default().push(ticket.clone());
     }
 
     // 8. Pass 3 — Contradiction detection
@@ -217,14 +210,12 @@ fn read_token_from_env_file(wiki_dir: &Path) -> Option<String> {
     let file = fs::File::open(&env_path).ok()?;
     let reader = BufReader::new(file);
 
-    for line in reader.lines() {
-        if let Ok(line) = line {
-            let trimmed = line.trim();
-            if trimmed.starts_with("WIKI_NOTION_TOKEN=") {
-                let value = trimmed["WIKI_NOTION_TOKEN=".len()..].trim();
-                if !value.is_empty() {
-                    return Some(value.to_string());
-                }
+    for line in reader.lines().map_while(Result::ok) {
+        let trimmed = line.trim();
+        if let Some(value) = trimmed.strip_prefix("WIKI_NOTION_TOKEN=") {
+            let value = value.trim();
+            if !value.is_empty() {
+                return Some(value.to_string());
             }
         }
     }
@@ -234,10 +225,7 @@ fn read_token_from_env_file(wiki_dir: &Path) -> Option<String> {
 
 fn prompt_for_token() -> Result<String> {
     eprintln!();
-    eprintln!(
-        "{} Notion API token not found.",
-        console::style("◆").cyan()
-    );
+    eprintln!("{} Notion API token not found.", console::style("◆").cyan());
     eprintln!(
         "{} Create an integration at https://www.notion.so/my-integrations",
         console::style("│").dim()
@@ -318,7 +306,12 @@ pub fn parse_notion_url(url: &str) -> Result<String> {
     }
 
     // Parse as URL
-    let parts: Vec<&str> = cleaned.split('?').next().unwrap_or(cleaned).split('/').collect();
+    let parts: Vec<&str> = cleaned
+        .split('?')
+        .next()
+        .unwrap_or(cleaned)
+        .split('/')
+        .collect();
 
     // Find the last path segment that looks like a hex ID
     for part in parts.iter().rev() {
@@ -370,8 +363,7 @@ fn is_hex_id(s: &str) -> bool {
 
 fn is_uuid(s: &str) -> bool {
     s.len() == 36
-        && s.chars()
-            .all(|c| c.is_ascii_hexdigit() || c == '-')
+        && s.chars().all(|c| c.is_ascii_hexdigit() || c == '-')
         && s.matches('-').count() == 4
 }
 
@@ -413,9 +405,7 @@ async fn fetch_all_tickets(
         }
 
         has_more = response["has_more"].as_bool().unwrap_or(false);
-        cursor = response["next_cursor"]
-            .as_str()
-            .map(|s| s.to_string());
+        cursor = response["next_cursor"].as_str().map(|s| s.to_string());
 
         page_count += 1;
 
@@ -431,7 +421,11 @@ async fn fetch_all_tickets(
             1.0
         };
         ui::notion_progress(
-            &format!("Fetched {} tickets (page {})", all_tickets.len(), page_count),
+            &format!(
+                "Fetched {} tickets (page {})",
+                all_tickets.len(),
+                page_count
+            ),
             prog.min(0.99),
         );
 
@@ -469,8 +463,7 @@ fn parse_ticket_from_page(page: &serde_json::Value) -> Option<NotionTicket> {
     let properties = &page["properties"];
 
     // Extract title — try common property names
-    let title = extract_title_property(properties)
-        .unwrap_or_else(|| "Untitled".to_string());
+    let title = extract_title_property(properties).unwrap_or_else(|| "Untitled".to_string());
 
     // Extract status
     let status = extract_status_property(properties);
@@ -602,7 +595,6 @@ async fn fetch_ticket_details(
         let semaphore = semaphore.clone();
         let completed = completed.clone();
         let ticket = (*ticket).clone();
-        let total = total;
 
         async move {
             let _permit = semaphore.acquire().await.unwrap();
@@ -634,10 +626,7 @@ async fn fetch_ticket_details(
             let done = completed.fetch_add(1, std::sync::atomic::Ordering::Relaxed) + 1;
             if done % 5 == 0 || done == total {
                 let prog = done as f64 / total as f64;
-                ui::notion_progress(
-                    &format!("Details: {}/{} tickets", done, total),
-                    prog,
-                );
+                ui::notion_progress(&format!("Details: {}/{} tickets", done, total), prog);
             }
 
             enriched_ticket
@@ -694,11 +683,7 @@ pub fn extract_text_from_blocks(blocks: &[serde_json::Value]) -> String {
                     "numbered_list_item" => "1. ",
                     "to_do" => {
                         let checked = block["to_do"]["checked"].as_bool().unwrap_or(false);
-                        if checked {
-                            "- [x] "
-                        } else {
-                            "- [ ] "
-                        }
+                        if checked { "- [x] " } else { "- [ ] " }
                     }
                     "quote" => "> ",
                     _ => "",
@@ -733,9 +718,12 @@ fn extract_comments(results: &[serde_json::Value]) -> Vec<String> {
 pub fn map_ticket_to_domain(ticket: &NotionTicket, existing_domains: &[String]) -> String {
     // 1. Check tags against domain names
     for tag in &ticket.tags {
-        let tag_lower = tag.to_lowercase().replace(' ', "-").replace('_', "-");
+        let tag_lower = tag.to_lowercase().replace([' ', '_'], "-");
         for domain in existing_domains {
-            if tag_lower == *domain || tag_lower.contains(domain.as_str()) || domain.contains(&tag_lower) {
+            if tag_lower == *domain
+                || tag_lower.contains(domain.as_str())
+                || domain.contains(&tag_lower)
+            {
                 return domain.clone();
             }
         }
@@ -751,10 +739,7 @@ pub fn map_ticket_to_domain(ticket: &NotionTicket, existing_domains: &[String]) 
 
     // 3. Use the first tag as domain name (normalized)
     if let Some(tag) = ticket.tags.first() {
-        return tag
-            .to_lowercase()
-            .replace(' ', "-")
-            .replace('_', "-");
+        return tag.to_lowercase().replace([' ', '_'], "-");
     }
 
     // 4. Fall back to uncategorized
@@ -857,8 +842,15 @@ pub fn detect_contradictions(tickets: &[NotionTicket]) -> Vec<(String, String)> 
 fn extract_business_rules(tickets: &[NotionTicket]) -> Vec<String> {
     let mut rules = Vec::new();
     let rule_indicators = [
-        "must", "should", "always", "never", "required", "mandatory",
-        "rule:", "constraint:", "policy:",
+        "must",
+        "should",
+        "always",
+        "never",
+        "required",
+        "mandatory",
+        "rule:",
+        "constraint:",
+        "policy:",
     ];
 
     for ticket in tickets {
@@ -886,8 +878,14 @@ fn extract_business_rules(tickets: &[NotionTicket]) -> Vec<String> {
 fn extract_decisions(tickets: &[NotionTicket]) -> Vec<String> {
     let mut decisions = Vec::new();
     let decision_indicators = [
-        "decided", "decision:", "we chose", "we decided", "go with",
-        "approved", "agreed", "selected",
+        "decided",
+        "decision:",
+        "we chose",
+        "we decided",
+        "go with",
+        "approved",
+        "agreed",
+        "selected",
     ];
 
     for ticket in tickets {
@@ -955,7 +953,10 @@ async fn api_request_with_retry(
                     // Rate limited
                     retries += 1;
                     if retries > MAX_RETRIES {
-                        bail!("Notion API rate limit exceeded after {} retries", MAX_RETRIES);
+                        bail!(
+                            "Notion API rate limit exceeded after {} retries",
+                            MAX_RETRIES
+                        );
                     }
 
                     let retry_after = resp
@@ -965,8 +966,9 @@ async fn api_request_with_retry(
                         .and_then(|s| s.parse::<u64>().ok())
                         .unwrap_or(BASE_RETRY_DELAY_MS / 1000);
 
-                    let delay =
-                        Duration::from_millis(retry_after * 1000 + BASE_RETRY_DELAY_MS * retries as u64);
+                    let delay = Duration::from_millis(
+                        retry_after * 1000 + BASE_RETRY_DELAY_MS * retries as u64,
+                    );
                     ui::warn(&format!(
                         "Rate limited. Retrying in {:?}... ({}/{})",
                         delay, retries, MAX_RETRIES
@@ -990,11 +992,7 @@ async fn api_request_with_retry(
                 }
 
                 let error_body = resp.text().await.unwrap_or_default();
-                bail!(
-                    "Notion API error ({}): {}",
-                    status,
-                    error_body
-                );
+                bail!("Notion API error ({}): {}", status, error_body);
             }
             Err(e) => {
                 retries += 1;
@@ -1042,7 +1040,10 @@ async fn api_get_with_retry(
                 if status.as_u16() == 429 {
                     retries += 1;
                     if retries > MAX_RETRIES {
-                        bail!("Notion API rate limit exceeded after {} retries", MAX_RETRIES);
+                        bail!(
+                            "Notion API rate limit exceeded after {} retries",
+                            MAX_RETRIES
+                        );
                     }
 
                     let retry_after = resp
@@ -1174,7 +1175,8 @@ mod tests {
 
     #[test]
     fn parse_notion_url_with_title_prefix() {
-        let url = "https://www.notion.so/workspace/My-Database-21fbcf40a7e680d0b52de5bc49fa1121?v=abc";
+        let url =
+            "https://www.notion.so/workspace/My-Database-21fbcf40a7e680d0b52de5bc49fa1121?v=abc";
         let result = parse_notion_url(url).unwrap();
         assert_eq!(result, "21fbcf40-a7e6-80d0-b52d-e5bc49fa1121");
     }

@@ -4,68 +4,50 @@ use std::path::{Path, PathBuf};
 use std::sync::LazyLock;
 
 use anyhow::{Context, Result};
+use ignore::WalkBuilder;
 use rayon::prelude::*;
 use regex::Regex;
-use ignore::WalkBuilder;
 
 // ─── Pre-compiled regex patterns ───
 
 // JS/TS imports
-static RE_JS_IMPORT: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r#"import\s+.*?\s+from\s+['"]([^'"]+)['"]"#).unwrap()
-});
-static RE_JS_REQUIRE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r#"require\(\s*['"]([^'"]+)['"]\s*\)"#).unwrap()
-});
-static RE_JS_EXPORT: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r#"export\s+.*?\s+from\s+['"]([^'"]+)['"]"#).unwrap()
-});
+static RE_JS_IMPORT: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r#"import\s+.*?\s+from\s+['"]([^'"]+)['"]"#).unwrap());
+static RE_JS_REQUIRE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r#"require\(\s*['"]([^'"]+)['"]\s*\)"#).unwrap());
+static RE_JS_EXPORT: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r#"export\s+.*?\s+from\s+['"]([^'"]+)['"]"#).unwrap());
 
 // Python imports
-static RE_PY_FROM: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"^from\s+(\S+)\s+import").unwrap()
-});
-static RE_PY_IMPORT: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"^import\s+(\S+)").unwrap()
-});
+static RE_PY_FROM: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^from\s+(\S+)\s+import").unwrap());
+static RE_PY_IMPORT: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^import\s+(\S+)").unwrap());
 
 // Rust imports
-static RE_RS_USE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"use\s+crate::(\S+?)(?:::\{|;)").unwrap()
-});
-static RE_RS_MOD: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"^(?:pub\s+)?mod\s+(\w+)\s*;").unwrap()
-});
+static RE_RS_USE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"use\s+crate::(\S+?)(?:::\{|;)").unwrap());
+static RE_RS_MOD: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^(?:pub\s+)?mod\s+(\w+)\s*;").unwrap());
 
 // Go imports
-static RE_GO_SINGLE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r#"import\s+"([^"]+)""#).unwrap()
-});
-static RE_GO_BLOCK: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r#"import\s*\(([\s\S]*?)\)"#).unwrap()
-});
-static RE_GO_PATH: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r#""([^"]+)""#).unwrap()
-});
+static RE_GO_SINGLE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r#"import\s+"([^"]+)""#).unwrap());
+static RE_GO_BLOCK: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r#"import\s*\(([\s\S]*?)\)"#).unwrap());
+static RE_GO_PATH: LazyLock<Regex> = LazyLock::new(|| Regex::new(r#""([^"]+)""#).unwrap());
 
 // Comments (TODO/FIXME/HACK/NOTE)
-static RE_COMMENTS: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?://|#|/\*)\s*(TODO|FIXME|HACK|NOTE)\b[:\s]*(.*)").unwrap()
-});
+static RE_COMMENTS: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?://|#|/\*)\s*(TODO|FIXME|HACK|NOTE)\b[:\s]*(.*)").unwrap());
 
 // Model/type definitions per language
-static RE_JS_MODELS: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?:export\s+)?(?:interface|type|class|enum)\s+(\w+)").unwrap()
-});
-static RE_PY_CLASS: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"class\s+(\w+)").unwrap()
-});
-static RE_RS_STRUCT: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?:pub\s+)?(?:struct|enum|trait)\s+(\w+)").unwrap()
-});
-static RE_GO_TYPE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"type\s+(\w+)\s+struct").unwrap()
-});
+static RE_JS_MODELS: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?:export\s+)?(?:interface|type|class|enum)\s+(\w+)").unwrap());
+static RE_PY_CLASS: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"class\s+(\w+)").unwrap());
+static RE_RS_STRUCT: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?:pub\s+)?(?:struct|enum|trait)\s+(\w+)").unwrap());
+static RE_GO_TYPE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"type\s+(\w+)\s+struct").unwrap());
 
 // Route/endpoint extraction
 static RE_EXPRESS: LazyLock<Regex> = LazyLock::new(|| {
@@ -77,12 +59,10 @@ static RE_FLASK: LazyLock<Regex> = LazyLock::new(|| {
 static RE_NEXTJS: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"export\s+(?:async\s+)?function\s+(GET|POST|PUT|PATCH|DELETE)").unwrap()
 });
-static RE_ACTIX: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r#"#\[\s*(get|post|put|patch|delete)\s*\(\s*"([^"]+)""#).unwrap()
-});
-static RE_GO_HTTP: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r#"(?:HandleFunc|Handle)\s*\(\s*"([^"]+)""#).unwrap()
-});
+static RE_ACTIX: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r#"#\[\s*(get|post|put|patch|delete)\s*\(\s*"([^"]+)""#).unwrap());
+static RE_GO_HTTP: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r#"(?:HandleFunc|Handle)\s*\(\s*"([^"]+)""#).unwrap());
 
 use crate::ui;
 use crate::wiki::common::capitalize;
@@ -162,7 +142,11 @@ pub fn run() -> Result<ScanResult> {
 
     let languages = detect_languages(&all_files);
     ui::scan_progress(
-        &format!("{} files found, {} languages detected", total_files, languages.len()),
+        &format!(
+            "{} files found, {} languages detected",
+            total_files,
+            languages.len()
+        ),
         0.33,
     );
 
@@ -178,11 +162,7 @@ pub fn run() -> Result<ScanResult> {
     ui::step(&format!(
         "Found {} domain candidate(s): {}",
         domains_map.len(),
-        domains_map
-            .keys()
-            .cloned()
-            .collect::<Vec<_>>()
-            .join(", ")
+        domains_map.keys().cloned().collect::<Vec<_>>().join(", ")
     ));
 
     for (name, files) in &domains_map {
@@ -191,10 +171,7 @@ pub fn run() -> Result<ScanResult> {
 
     // Pass 2: Relationship analysis
     ui::step("Pass 2 — analyzing cross-domain dependencies...");
-    let source_files: Vec<&PathBuf> = all_files
-        .iter()
-        .filter(|p| is_source_file(p))
-        .collect();
+    let source_files: Vec<&PathBuf> = all_files.iter().filter(|p| is_source_file(p)).collect();
 
     let imports = extract_all_imports(&source_files, &project_root);
     let dependency_graph = build_dependency_graph(&domains_map, &imports, &project_root);
@@ -212,10 +189,7 @@ pub fn run() -> Result<ScanResult> {
         let files = &domains_map[name];
         let details = extract_details(files, &project_root);
 
-        let dependencies = dependency_graph
-            .get(name)
-            .cloned()
-            .unwrap_or_default();
+        let dependencies = dependency_graph.get(name).cloned().unwrap_or_default();
 
         let test_files: Vec<String> = files
             .iter()
@@ -223,10 +197,8 @@ pub fn run() -> Result<ScanResult> {
             .map(|f| relativize(f, &project_root))
             .collect();
 
-        let relative_files: Vec<String> = files
-            .iter()
-            .map(|f| relativize(f, &project_root))
-            .collect();
+        let relative_files: Vec<String> =
+            files.iter().map(|f| relativize(f, &project_root)).collect();
 
         domains.push(DomainInfo {
             name: name.clone(),
@@ -239,10 +211,7 @@ pub fn run() -> Result<ScanResult> {
         });
 
         let progress = 0.66 + 0.34 * ((i + 1) as f64 / domain_names.len() as f64);
-        ui::scan_progress(
-            &format!("Extracted details for {}", name),
-            progress,
-        );
+        ui::scan_progress(&format!("Extracted details for {}", name), progress);
     }
 
     // Sort domains alphabetically
@@ -265,21 +234,23 @@ pub fn run() -> Result<ScanResult> {
 
 // ─── Pass 1: Structure Discovery ───
 
-fn discover_structure(root: &Path) -> Result<(Vec<PathBuf>, HashMap<String, Vec<PathBuf>>)> {
+type DomainFileMap = HashMap<String, Vec<PathBuf>>;
+
+fn discover_structure(root: &Path) -> Result<(Vec<PathBuf>, DomainFileMap)> {
     let mut all_files: Vec<PathBuf> = Vec::new();
     let mut domain_files: HashMap<String, Vec<PathBuf>> = HashMap::new();
 
     let mut walker = WalkBuilder::new(root);
     walker
-        .hidden(true)           // skip hidden files/dirs
-        .git_ignore(true)       // respect .gitignore
-        .git_global(true)       // respect global gitignore
-        .git_exclude(true)      // respect .git/info/exclude
+        .hidden(true) // skip hidden files/dirs
+        .git_ignore(true) // respect .gitignore
+        .git_global(true) // respect global gitignore
+        .git_exclude(true) // respect .git/info/exclude
         .follow_links(false);
 
     // Skip directories not covered by .gitignore (e.g. .wiki)
     walker.filter_entry(|entry| {
-        if entry.file_type().map_or(false, |ft| ft.is_dir()) {
+        if entry.file_type().is_some_and(|ft| ft.is_dir()) {
             let name = entry.file_name().to_string_lossy();
             return !EXTRA_SKIP_DIRS.contains(&name.as_ref());
         }
@@ -304,10 +275,7 @@ fn discover_structure(root: &Path) -> Result<(Vec<PathBuf>, HashMap<String, Vec<
 
         // Try to assign this file to a domain
         if let Some(domain_name) = extract_domain_name(&path, root) {
-            domain_files
-                .entry(domain_name)
-                .or_default()
-                .push(path);
+            domain_files.entry(domain_name).or_default().push(path);
         }
     }
 
@@ -394,10 +362,7 @@ fn merge_loose_files_into_domains(
     for file in all_files {
         if let Ok(rel) = file.strip_prefix(root) {
             // Get the file name without extensions and normalize it
-            let raw_stem = file
-                .file_name()
-                .and_then(|s| s.to_str())
-                .unwrap_or("");
+            let raw_stem = file.file_name().and_then(|s| s.to_str()).unwrap_or("");
             let normalized = normalize_domain_name(&strip_all_extensions(raw_stem));
 
             if normalized.is_empty() {
@@ -409,8 +374,10 @@ fn merge_loose_files_into_domains(
                 Some(normalized.clone())
             } else if existing_domains.contains(&format!("{}s", normalized)) {
                 Some(format!("{}s", normalized))
-            } else if normalized.ends_with('s') && existing_domains.contains(&normalized[..normalized.len()-1]) {
-                Some(normalized[..normalized.len()-1].to_string())
+            } else if normalized.ends_with('s')
+                && existing_domains.contains(&normalized[..normalized.len() - 1])
+            {
+                Some(normalized[..normalized.len() - 1].to_string())
             } else {
                 None
             };
@@ -434,9 +401,9 @@ fn merge_loose_files_into_domains(
 }
 
 fn normalize_domain_name(name: &str) -> String {
-    let lower = name.to_lowercase()
-        .replace('/', "")
-        .replace('\\', "")
+    let lower = name
+        .to_lowercase()
+        .replace(['/', '\\'], "")
         .replace("..", "");
 
     // Strip common suffixes like .controller, .service, .model, .module, .handler, .route, .test
@@ -482,7 +449,7 @@ fn normalize_domain_name(name: &str) -> String {
     }
 
     // Normalize separators
-    cleaned = cleaned.replace('_', "-").replace(' ', "-");
+    cleaned = cleaned.replace(['_', ' '], "-");
 
     // Singularize simple plurals for merging (users → user is NOT desired,
     // we keep the original form but normalize known patterns)
@@ -493,18 +460,13 @@ fn strip_all_extensions(name: &str) -> String {
     // Strip file extensions progressively: billing.controller.ts → billing.controller → billing
     // Then normalize_domain_name handles the .controller suffix
     let mut result = name.to_string();
-    loop {
-        match result.rfind('.') {
-            Some(pos) => {
-                let after = &result[pos + 1..];
-                // If what's after the dot looks like an extension or a known suffix, strip it
-                if SOURCE_EXTENSIONS.contains(&after) || after.len() <= 4 {
-                    result = result[..pos].to_string();
-                } else {
-                    break;
-                }
-            }
-            None => break,
+    while let Some(pos) = result.rfind('.') {
+        let after = &result[pos + 1..];
+        // If what's after the dot looks like an extension or a known suffix, strip it
+        if SOURCE_EXTENSIONS.contains(&after) || after.len() <= 4 {
+            result = result[..pos].to_string();
+        } else {
+            break;
         }
     }
     result
@@ -518,10 +480,7 @@ fn is_source_file(path: &Path) -> bool {
 }
 
 fn is_test_file(path: &Path) -> bool {
-    let name = path
-        .file_name()
-        .and_then(|n| n.to_str())
-        .unwrap_or("");
+    let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
 
     let path_str = path.to_string_lossy();
 
@@ -601,10 +560,7 @@ fn extract_all_imports(files: &[&PathBuf], _root: &Path) -> Vec<FileImports> {
 }
 
 fn extract_imports(path: &Path, content: &str) -> Vec<String> {
-    let ext = path
-        .extension()
-        .and_then(|e| e.to_str())
-        .unwrap_or("");
+    let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
 
     match ext {
         "ts" | "tsx" | "js" | "jsx" => extract_js_imports(content),
@@ -750,8 +706,7 @@ fn build_dependency_graph(
                 // Check if any identifier matches a portion of the import path
                 let matches = idents.iter().any(|ident| {
                     let ident_lower = ident.to_lowercase().replace('_', "-");
-                    import_lower.contains(&ident_lower)
-                        || ident_lower.contains(&import_lower)
+                    import_lower.contains(&ident_lower) || ident_lower.contains(&import_lower)
                 });
 
                 if matches {
@@ -812,19 +767,14 @@ fn extract_details(files: &[PathBuf], _root: &Path) -> DomainDetails {
 fn extract_file_details(content: &str, path: &Path) -> DomainDetails {
     let mut details = DomainDetails::default();
 
-    let ext = path
-        .extension()
-        .and_then(|e| e.to_str())
-        .unwrap_or("");
+    let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
 
     // Extract TODO/FIXME/HACK/NOTE comments
     for cap in RE_COMMENTS.captures_iter(content) {
         let tag = &cap[1];
         let text = cap[2].trim().trim_end_matches("*/").trim();
         if !text.is_empty() {
-            details
-                .comments
-                .push(format!("[{}] {}", tag, text));
+            details.comments.push(format!("[{}] {}", tag, text));
         }
     }
 
@@ -856,11 +806,9 @@ fn extract_file_details(content: &str, path: &Path) -> DomainDetails {
     // Extract route/endpoint definitions
     // Express-style: app.get('/...'), router.post('/...')
     for cap in RE_EXPRESS.captures_iter(content) {
-        details.routes.push(format!(
-            "{} {}",
-            cap[1].to_uppercase(),
-            &cap[2]
-        ));
+        details
+            .routes
+            .push(format!("{} {}", cap[1].to_uppercase(), &cap[2]));
     }
 
     // Python/Flask/FastAPI decorators: @app.route('/...'), @router.get('/...')
@@ -874,20 +822,16 @@ fn extract_file_details(content: &str, path: &Path) -> DomainDetails {
         // Check for HTTP method exports: export async function GET/POST/etc.
         for cap in RE_NEXTJS.captures_iter(content) {
             if let Some(route) = extract_nextjs_route(path) {
-                details
-                    .routes
-                    .push(format!("{} {}", &cap[1], route));
+                details.routes.push(format!("{} {}", &cap[1], route));
             }
         }
     }
 
     // Rust Actix/Axum style: #[get("/...")]
     for cap in RE_ACTIX.captures_iter(content) {
-        details.routes.push(format!(
-            "{} {}",
-            cap[1].to_uppercase(),
-            &cap[2]
-        ));
+        details
+            .routes
+            .push(format!("{} {}", cap[1].to_uppercase(), &cap[2]));
     }
 
     // Go: http.HandleFunc("/...", handler)
@@ -1063,7 +1007,9 @@ pub fn generate_graph(domains: &[DomainInfo]) -> String {
             domains.iter().any(|d| {
                 d.name == *name
                     && (!d.dependencies.is_empty()
-                        || domains.iter().any(|other| other.dependencies.contains(&d.name)))
+                        || domains
+                            .iter()
+                            .any(|other| other.dependencies.contains(&d.name)))
             })
         })
         .collect();
@@ -1192,7 +1138,10 @@ mod tests {
 
     #[test]
     fn strip_extensions_ts_file() {
-        assert_eq!(strip_all_extensions("billing.controller.ts"), "billing.controller");
+        assert_eq!(
+            strip_all_extensions("billing.controller.ts"),
+            "billing.controller"
+        );
     }
 
     #[test]

@@ -56,9 +56,9 @@ pub fn gradient_bar(progress: f64, width: usize, from: (u8, u8, u8), to: (u8, u8
 
 /// Render a health bar (red → yellow → green based on percentage).
 pub fn health_bar(progress: f64, width: usize) -> String {
-    let red = (231, 76, 60);       // #e74c3c
-    let yellow = (241, 196, 15);   // #f1c40f
-    let green = (46, 204, 113);    // #2ecc71
+    let red = (231, 76, 60); // #e74c3c
+    let yellow = (241, 196, 15); // #f1c40f
+    let green = (46, 204, 113); // #2ecc71
 
     let filled = (progress * width as f64).round() as usize;
     let empty = width.saturating_sub(filled);
@@ -71,7 +71,10 @@ pub fn health_bar(progress: f64, width: usize) -> String {
         } else {
             lerp_color(yellow, green, (t - 0.5) * 2.0)
         };
-        result.push_str(&format!("\x1b[38;2;{};{};{}m█\x1b[0m", color.0, color.1, color.2));
+        result.push_str(&format!(
+            "\x1b[38;2;{};{};{}m█\x1b[0m",
+            color.0, color.1, color.2
+        ));
     }
     for _ in 0..empty {
         result.push_str(&format!("{}", style("░").dim()));
@@ -82,8 +85,8 @@ pub fn health_bar(progress: f64, width: usize) -> String {
 
 // ─── Color palette ───
 
-const VIOLET: (u8, u8, u8) = (138, 43, 226);  // gradient start for titles
-const BLUE: (u8, u8, u8) = (52, 152, 219);     // gradient end for titles
+const VIOLET: (u8, u8, u8) = (138, 43, 226); // gradient start for titles
+const BLUE: (u8, u8, u8) = (52, 152, 219); // gradient end for titles
 const CYAN_COLOR: (u8, u8, u8) = (26, 188, 216);
 #[cfg(feature = "notion")]
 const ROSE: (u8, u8, u8) = (224, 102, 153);
@@ -103,30 +106,18 @@ pub fn app_header(version: &str) {
 
 /// Print a major action start.
 pub fn action(msg: &str) {
-    eprintln!(
-        "{} {}",
-        style(MARKER_DIAMOND).cyan(),
-        style(msg).bold()
-    );
+    eprintln!("{} {}", style(MARKER_DIAMOND).cyan(), style(msg).bold());
 }
 
 /// Print a step within an action.
 pub fn step(msg: &str) {
-    eprintln!(
-        "{}  {}",
-        style(MARKER_STEP).dim(),
-        msg
-    );
+    eprintln!("{}  {}", style(MARKER_STEP).dim(), msg);
 }
 
 /// Print the last step within an action.
 #[allow(dead_code)] // Reserved for future multi-step flows
 pub fn step_last(msg: &str) {
-    eprintln!(
-        "{}  {}",
-        style(MARKER_STEP_LAST).dim(),
-        msg
-    );
+    eprintln!("{}  {}", style(MARKER_STEP_LAST).dim(), msg);
 }
 
 /// Print a success message.
@@ -140,29 +131,17 @@ pub fn success(msg: &str) {
 
 /// Print an informational message.
 pub fn info(msg: &str) {
-    eprintln!(
-        "{} {}",
-        style(MARKER_INFO).cyan(),
-        style(msg).dim()
-    );
+    eprintln!("{} {}", style(MARKER_INFO).cyan(), style(msg).dim());
 }
 
 /// Print a warning message.
 pub fn warn(msg: &str) {
-    eprintln!(
-        "{} {}",
-        style(MARKER_WARNING).yellow(),
-        style(msg).yellow()
-    );
+    eprintln!("{} {}", style(MARKER_WARNING).yellow(), style(msg).yellow());
 }
 
 /// Print an error message.
 pub fn error(msg: &str) {
-    eprintln!(
-        "{} {}",
-        style(MARKER_ERROR).red().bold(),
-        style(msg).red()
-    );
+    eprintln!("{} {}", style(MARKER_ERROR).red().bold(), style(msg).red());
 }
 
 /// Print a "coming soon" message.
@@ -303,7 +282,11 @@ pub fn domain_entry(name: &str, detail: &str, is_stale: bool) {
 
 /// Print a box around summary content.
 pub fn summary_box(lines: &[String]) {
-    let max_len = lines.iter().map(|l| console::measure_text_width(l)).max().unwrap_or(40);
+    let max_len = lines
+        .iter()
+        .map(|l| console::measure_text_width(l))
+        .max()
+        .unwrap_or(40);
     let border_len = max_len + 4;
 
     eprintln!("{}  ┌{}┐", style("│").dim(), "─".repeat(border_len));
@@ -376,7 +359,10 @@ mod tests {
         let result = gradient_bar(0.5, width, (0, 255, 0), (0, 255, 0));
         // The bar should contain filled and empty characters
         let filled_count = result.matches('\u{2588}').count(); // '█'
-        assert_eq!(filled_count, 5, "50% of width 10 should give 5 filled blocks");
+        assert_eq!(
+            filled_count, 5,
+            "50% of width 10 should give 5 filled blocks"
+        );
     }
 
     #[test]
@@ -400,7 +386,10 @@ mod tests {
         let width = 20;
         let result = health_bar(0.5, width);
         let filled_count = result.matches('\u{2588}').count();
-        assert_eq!(filled_count, 10, "50% of width 20 should give 10 filled blocks");
+        assert_eq!(
+            filled_count, 10,
+            "50% of width 20 should give 10 filled blocks"
+        );
     }
 
     #[test]

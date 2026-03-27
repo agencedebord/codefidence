@@ -92,7 +92,7 @@ pub fn run() -> Result<()> {
         .iter()
         .filter(|n| {
             n.last_updated
-                .map_or(false, |d| (today - d).num_days() > staleness_threshold)
+                .is_some_and(|d| (today - d).num_days() > staleness_threshold)
         })
         .count();
 
@@ -292,9 +292,7 @@ fn build_domain_json(
 }
 
 /// Build the domain sections: for each domain, list notes with description and confidence.
-fn build_domain_sections(
-    domains_dir: &Path,
-) -> Result<Vec<(String, Vec<String>)>> {
+fn build_domain_sections(domains_dir: &Path) -> Result<Vec<(String, Vec<String>)>> {
     let mut sections: Vec<(String, Vec<String>)> = Vec::new();
 
     let mut domain_names: Vec<String> = Vec::new();
@@ -317,19 +315,15 @@ fn build_domain_sections(
         for entry in fs::read_dir(&domain_dir)? {
             let entry = entry?;
             let path = entry.path();
-            if path.extension().map_or(false, |ext| ext == "md") {
+            if path.extension().is_some_and(|ext| ext == "md") {
                 md_files.push(path);
             }
         }
 
         // Sort: _overview.md first, then alphabetical
         md_files.sort_by(|a, b| {
-            let a_is_overview = a
-                .file_name()
-                .map_or(false, |n| n == "_overview.md");
-            let b_is_overview = b
-                .file_name()
-                .map_or(false, |n| n == "_overview.md");
+            let a_is_overview = a.file_name().is_some_and(|n| n == "_overview.md");
+            let b_is_overview = b.file_name().is_some_and(|n| n == "_overview.md");
 
             if a_is_overview && !b_is_overview {
                 std::cmp::Ordering::Less
@@ -362,10 +356,7 @@ fn build_domain_sections(
                 capitalize(&stem.replace('-', " "))
             };
 
-            let rel_path = format!(
-                "./domains/{}/{}",
-                domain_name, filename
-            );
+            let rel_path = format!("./domains/{}/{}", domain_name, filename);
 
             note_lines.push(format!(
                 "- [{}]({}) — `[{}]`",
@@ -400,7 +391,7 @@ fn collect_decisions(wiki_dir: &Path) -> Result<Vec<DecisionEntry>> {
         let entry = entry?;
         let path = entry.path();
 
-        if !path.extension().map_or(false, |ext| ext == "md") {
+        if path.extension().is_none_or(|ext| ext != "md") {
             continue;
         }
 
@@ -410,29 +401,26 @@ fn collect_decisions(wiki_dir: &Path) -> Result<Vec<DecisionEntry>> {
             .unwrap_or_default();
 
         // Try to extract date from filename (e.g., 2026-03-26-no-dedup.md)
-        let (date, title_slug) = if filename.len() >= 11 && filename[..10].chars().filter(|c| *c == '-').count() == 2 {
-            let date_part = &filename[..10];
-            let rest = filename[11..].trim_end_matches(".md");
-            (date_part.to_string(), rest.to_string())
-        } else {
-            let title_slug = filename.trim_end_matches(".md").to_string();
-            ("—".to_string(), title_slug)
-        };
+        let (date, title_slug) =
+            if filename.len() >= 11 && filename[..10].chars().filter(|c| *c == '-').count() == 2 {
+                let date_part = &filename[..10];
+                let rest = filename[11..].trim_end_matches(".md");
+                (date_part.to_string(), rest.to_string())
+            } else {
+                let title_slug = filename.trim_end_matches(".md").to_string();
+                ("—".to_string(), title_slug)
+            };
 
         // Try to read the note for a title and domain
         let (title, domain) = if let Ok(content) = fs::read_to_string(&path) {
             let title = extract_title_from_content(&content)
                 .unwrap_or_else(|| capitalize(&title_slug.replace('-', " ")));
 
-            let domain = extract_domain_from_content(&content)
-                .unwrap_or_else(|| "—".to_string());
+            let domain = extract_domain_from_content(&content).unwrap_or_else(|| "—".to_string());
 
             (title, domain)
         } else {
-            (
-                capitalize(&title_slug.replace('-', " ")),
-                "—".to_string(),
-            )
+            (capitalize(&title_slug.replace('-', " ")), "—".to_string())
         };
 
         let rel_path = format!("./decisions/{}", filename);
@@ -465,8 +453,8 @@ fn extract_domain_from_content(content: &str) -> Option<String> {
     // Look for domain: in front matter or content
     for line in content.lines() {
         let trimmed = line.trim();
-        if trimmed.starts_with("domain:") {
-            let value = trimmed["domain:".len()..].trim();
+        if let Some(value) = trimmed.strip_prefix("domain:") {
+            let value = value.trim();
             if !value.is_empty() {
                 return Some(capitalize(value));
             }

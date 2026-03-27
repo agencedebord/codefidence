@@ -3,7 +3,7 @@ use std::path::Path;
 #[cfg(test)]
 use std::path::PathBuf;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use chrono::Utc;
 
 use crate::ui;
@@ -16,16 +16,10 @@ const DECISION_TEMPLATE: &str = include_str!("../templates/decision.md");
 /// Normalize a domain name: lowercase, replace spaces and underscores with hyphens.
 /// Also strips path separators and double dots for security.
 fn normalize_domain_name(name: &str) -> String {
-    let normalized = name.trim()
-        .to_lowercase()
-        .replace(' ', "-")
-        .replace('_', "-");
+    let normalized = name.trim().to_lowercase().replace([' ', '_'], "-");
 
     // Strip any path separators and dots for security
-    normalized
-        .replace('/', "")
-        .replace('\\', "")
-        .replace("..", "")
+    normalized.replace(['/', '\\'], "").replace("..", "")
 }
 
 /// Generate a slug from text: lowercase, hyphens, max 50 chars.
@@ -33,13 +27,7 @@ fn slugify(text: &str, max_len: usize) -> String {
     let slug: String = text
         .to_lowercase()
         .chars()
-        .map(|c| {
-            if c.is_ascii_alphanumeric() {
-                c
-            } else {
-                '-'
-            }
-        })
+        .map(|c| if c.is_ascii_alphanumeric() { c } else { '-' })
         .collect();
 
     // Collapse multiple hyphens
@@ -94,7 +82,11 @@ fn domain_in(wiki_dir: &Path, name: &str) -> Result<()> {
 
     let normalized = normalize_domain_name(name);
 
-    if normalized.is_empty() || normalized == "." || normalized.contains('/') || normalized.contains('\\') {
+    if normalized.is_empty()
+        || normalized == "."
+        || normalized.contains('/')
+        || normalized.contains('\\')
+    {
         bail!("Invalid domain name: \"{}\"", name);
     }
 
@@ -104,8 +96,12 @@ fn domain_in(wiki_dir: &Path, name: &str) -> Result<()> {
         bail!("Domain \"{}\" already exists.", normalized);
     }
 
-    fs::create_dir_all(&domain_dir)
-        .with_context(|| format!("Failed to create domain directory: {}", domain_dir.display()))?;
+    fs::create_dir_all(&domain_dir).with_context(|| {
+        format!(
+            "Failed to create domain directory: {}",
+            domain_dir.display()
+        )
+    })?;
 
     let date = Utc::now().format("%Y-%m-%d").to_string();
     let content = DOMAIN_OVERVIEW_TEMPLATE
@@ -154,10 +150,7 @@ fn context_in(wiki_dir: &Path, text: &str, domain_arg: Option<&str>) -> Result<(
 
     let overview_path = domain_dir.join("_overview.md");
     if !overview_path.exists() {
-        bail!(
-            "Overview file not found at {}",
-            overview_path.display()
-        );
+        bail!("Overview file not found at {}", overview_path.display());
     }
 
     let content = fs::read_to_string(&overview_path)
@@ -178,10 +171,7 @@ fn context_in(wiki_dir: &Path, text: &str, domain_arg: Option<&str>) -> Result<(
         ui::warn(&format!("Failed to regenerate index: {}", e));
     }
 
-    ui::success(&format!(
-        "Added context to domain \"{}\":",
-        target_domain
-    ));
+    ui::success(&format!("Added context to domain \"{}\":", target_domain));
     ui::info(&format!("  {}", bullet));
 
     Ok(())
@@ -195,8 +185,7 @@ fn decision_in(wiki_dir: &Path, text: &str) -> Result<()> {
     let filename = format!("{}-{}.md", date, slug);
 
     let decisions_dir = wiki_dir.join("decisions");
-    fs::create_dir_all(&decisions_dir)
-        .context("Failed to create decisions directory")?;
+    fs::create_dir_all(&decisions_dir).context("Failed to create decisions directory")?;
 
     let file_path = decisions_dir.join(&filename);
 
@@ -214,10 +203,7 @@ fn decision_in(wiki_dir: &Path, text: &str) -> Result<()> {
         ui::warn(&format!("Failed to regenerate index: {}", e));
     }
 
-    ui::success(&format!(
-        "Decision created at {}",
-        file_path.display()
-    ));
+    ui::success(&format!("Decision created at {}", file_path.display()));
 
     Ok(())
 }
@@ -247,7 +233,11 @@ fn guess_domain(wiki_dir: &Path, text: &str) -> Result<String> {
         _ => {
             bail!(
                 "Multiple domains matched: {}. Use --domain to specify.",
-                matches.iter().map(|s| s.as_str()).collect::<Vec<_>>().join(", ")
+                matches
+                    .iter()
+                    .map(|s| s.as_str())
+                    .collect::<Vec<_>>()
+                    .join(", ")
             );
         }
     }
@@ -278,8 +268,8 @@ fn append_to_section(content: &str, bullet: &str) -> String {
     if let Some(section_idx) = target_line_idx {
         // Find the end of this section (next ## heading or end of file)
         let mut insert_at = lines.len();
-        for i in (section_idx + 1)..lines.len() {
-            if lines[i].starts_with("## ") {
+        for (i, line) in lines.iter().enumerate().skip(section_idx + 1) {
+            if line.starts_with("## ") {
                 insert_at = i;
                 break;
             }
@@ -419,7 +409,12 @@ mod tests {
         let wiki = setup_wiki(&dir);
         create_domain(&dir, "billing");
 
-        context_in(&wiki, "Invoices must be paid within 30 days", Some("billing")).unwrap();
+        context_in(
+            &wiki,
+            "Invoices must be paid within 30 days",
+            Some("billing"),
+        )
+        .unwrap();
 
         let content = fs::read_to_string(wiki.join("domains/billing/_overview.md")).unwrap();
         assert!(content.contains("Invoices must be paid within 30 days [confirmed]"));
@@ -431,7 +426,12 @@ mod tests {
         let wiki = setup_wiki(&dir);
         create_domain(&dir, "auth");
 
-        context_in(&wiki, "Passwords must be at least 8 characters", Some("auth")).unwrap();
+        context_in(
+            &wiki,
+            "Passwords must be at least 8 characters",
+            Some("auth"),
+        )
+        .unwrap();
 
         let content = fs::read_to_string(wiki.join("domains/auth/_overview.md")).unwrap();
         assert!(content.contains("Passwords must be at least 8 characters [confirmed]"));
@@ -477,10 +477,16 @@ mod tests {
 
     #[test]
     fn add_decision_generates_proper_slug() {
-        assert_eq!(slugify("Use Stripe for payments", 50), "use-stripe-for-payments");
+        assert_eq!(
+            slugify("Use Stripe for payments", 50),
+            "use-stripe-for-payments"
+        );
         assert_eq!(slugify("Don't use Redis!", 50), "don-t-use-redis");
         assert_eq!(
-            slugify("A very long decision title that exceeds the maximum slug length allowed", 30),
+            slugify(
+                "A very long decision title that exceeds the maximum slug length allowed",
+                30
+            ),
             "a-very-long-decision-title-tha"
         );
     }

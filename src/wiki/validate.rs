@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::Path;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use chrono::Utc;
 use walkdir::WalkDir;
 
@@ -47,7 +47,10 @@ pub fn run() -> Result<()> {
         passes += 1;
     } else {
         for domain in &undocumented {
-            ui::warn(&format!("Domain '{}' found in code but not in wiki", domain));
+            ui::warn(&format!(
+                "Domain '{}' found in code but not in wiki",
+                domain
+            ));
         }
         warnings += undocumented.len();
     }
@@ -60,7 +63,10 @@ pub fn run() -> Result<()> {
         passes += 1;
     } else {
         for (note_path, ref_path) in &dead_refs {
-            ui::unresolved(&format!("{} references {} (not found)", note_path, ref_path));
+            ui::unresolved(&format!(
+                "{} references {} (not found)",
+                note_path, ref_path
+            ));
         }
         errors += dead_refs.len();
     }
@@ -130,12 +136,10 @@ pub fn run() -> Result<()> {
 
     // ─── Summary ───
     ui::header("Summary");
-    let summary_lines = vec![
-        format!(
-            "{} passed  {} warnings  {} errors",
-            passes, warnings, errors
-        ),
-    ];
+    let summary_lines = vec![format!(
+        "{} passed  {} warnings  {} errors",
+        passes, warnings, errors
+    )];
     let summary_strings: Vec<String> = summary_lines;
     ui::summary_box(&summary_strings);
 
@@ -143,7 +147,11 @@ pub fn run() -> Result<()> {
         eprintln!();
         ui::error("Validation failed.");
         eprintln!();
-        bail!("Validation failed with {} error(s) and {} warning(s).", errors, warnings);
+        bail!(
+            "Validation failed with {} error(s) and {} warning(s).",
+            errors,
+            warnings
+        );
     } else if warnings > 0 {
         eprintln!();
         ui::done("Validation passed with warnings.");
@@ -163,12 +171,9 @@ fn collect_all_md_files() -> Result<Vec<(String, String)>> {
     let wiki_dir = Path::new(".wiki");
     let mut files = Vec::new();
 
-    for entry in WalkDir::new(wiki_dir)
-        .into_iter()
-        .filter_map(|e| e.ok())
-    {
+    for entry in WalkDir::new(wiki_dir).into_iter().filter_map(|e| e.ok()) {
         let path = entry.path();
-        if path.extension().map_or(false, |ext| ext == "md") {
+        if path.extension().is_some_and(|ext| ext == "md") {
             let rel = path
                 .strip_prefix(wiki_dir)
                 .unwrap_or(path)
@@ -258,7 +263,11 @@ fn check_undocumented_domains() -> Result<Vec<String>> {
             }
 
             let path = entry.path();
-            if let Some(parent_name) = path.parent().and_then(|p| p.file_name()).and_then(|n| n.to_str()) {
+            if let Some(parent_name) = path
+                .parent()
+                .and_then(|p| p.file_name())
+                .and_then(|n| n.to_str())
+            {
                 if DOMAIN_PARENT_DIRS.contains(&parent_name.to_lowercase().as_str()) {
                     if let Some(domain_name) = path.file_name().and_then(|n| n.to_str()) {
                         let normalized = domain_name.to_lowercase().replace('_', "-");
@@ -269,10 +278,7 @@ fn check_undocumented_domains() -> Result<Vec<String>> {
         }
     }
 
-    let mut undocumented: Vec<String> = code_domains
-        .difference(&documented)
-        .cloned()
-        .collect();
+    let mut undocumented: Vec<String> = code_domains.difference(&documented).cloned().collect();
     undocumented.sort();
 
     Ok(undocumented)
@@ -404,12 +410,9 @@ fn check_orphan_notes() -> Result<Vec<String>> {
 
     let mut orphans = Vec::new();
 
-    for entry in WalkDir::new(domains_dir)
-        .into_iter()
-        .filter_map(|e| e.ok())
-    {
+    for entry in WalkDir::new(domains_dir).into_iter().filter_map(|e| e.ok()) {
         let path = entry.path();
-        if !path.extension().map_or(false, |ext| ext == "md") {
+        if path.extension().is_none_or(|ext| ext != "md") {
             continue;
         }
 
@@ -445,8 +448,8 @@ fn check_orphan_notes() -> Result<Vec<String>> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chrono::NaiveDate;
     use crate::wiki::note::{Confidence, WikiNote};
+    use chrono::NaiveDate;
     use tempfile::TempDir;
 
     fn make_note(
@@ -555,8 +558,20 @@ mod tests {
         let recent_date = chrono::Utc::now().date_naive();
 
         let notes = vec![
-            make_note("old.md", Confidence::Confirmed, Some(old_date), vec![], false),
-            make_note("new.md", Confidence::Confirmed, Some(recent_date), vec![], false),
+            make_note(
+                "old.md",
+                Confidence::Confirmed,
+                Some(old_date),
+                vec![],
+                false,
+            ),
+            make_note(
+                "new.md",
+                Confidence::Confirmed,
+                Some(recent_date),
+                vec![],
+                false,
+            ),
             make_note("no-date.md", Confidence::Confirmed, None, vec![], false),
         ];
 
@@ -569,9 +584,13 @@ mod tests {
     #[test]
     fn staleness_empty_when_all_recent() {
         let today = chrono::Utc::now().date_naive();
-        let notes = vec![
-            make_note("a.md", Confidence::Confirmed, Some(today), vec![], false),
-        ];
+        let notes = vec![make_note(
+            "a.md",
+            Confidence::Confirmed,
+            Some(today),
+            vec![],
+            false,
+        )];
 
         let stale = check_staleness(&notes, 30);
         assert!(stale.is_empty());
@@ -581,15 +600,13 @@ mod tests {
 
     #[test]
     fn dead_references_detects_missing_file() {
-        let notes = vec![
-            make_note(
-                "note.md",
-                Confidence::Confirmed,
-                None,
-                vec!["/nonexistent/path/to/file.ts".to_string()],
-                false,
-            ),
-        ];
+        let notes = vec![make_note(
+            "note.md",
+            Confidence::Confirmed,
+            None,
+            vec!["/nonexistent/path/to/file.ts".to_string()],
+            false,
+        )];
 
         let dead = check_dead_references(&notes);
         assert_eq!(dead.len(), 1);
@@ -603,15 +620,13 @@ mod tests {
         let real_file = dir.path().join("real.ts");
         std::fs::write(&real_file, "export {}").unwrap();
 
-        let notes = vec![
-            make_note(
-                "note.md",
-                Confidence::Confirmed,
-                None,
-                vec![real_file.to_string_lossy().to_string()],
-                false,
-            ),
-        ];
+        let notes = vec![make_note(
+            "note.md",
+            Confidence::Confirmed,
+            None,
+            vec![real_file.to_string_lossy().to_string()],
+            false,
+        )];
 
         let dead = check_dead_references(&notes);
         assert!(dead.is_empty());
@@ -651,15 +666,13 @@ mod tests {
 
     #[test]
     fn deprecated_references_empty_when_no_deprecated() {
-        let notes = vec![
-            make_note(
-                ".wiki/domains/billing/_overview.md",
-                Confidence::Confirmed,
-                None,
-                vec![],
-                false,
-            ),
-        ];
+        let notes = vec![make_note(
+            ".wiki/domains/billing/_overview.md",
+            Confidence::Confirmed,
+            None,
+            vec![],
+            false,
+        )];
 
         let md_files = vec![(
             "domains/billing/_overview.md".to_string(),

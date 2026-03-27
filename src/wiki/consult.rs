@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::Path;
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use console::style;
 use walkdir::WalkDir;
 
@@ -117,8 +117,8 @@ fn show_domain(wiki_dir: &Path, name: &str) -> Result<()> {
         .filter_map(|e| e.ok())
     {
         let path = entry.path();
-        if path.extension().map_or(false, |ext| ext == "md")
-            && path.file_name().map_or(false, |n| n != "_overview.md")
+        if path.extension().is_some_and(|ext| ext == "md")
+            && path.file_name().is_some_and(|n| n != "_overview.md")
         {
             if let Ok(note) = WikiNote::parse(path) {
                 other_notes.push(note);

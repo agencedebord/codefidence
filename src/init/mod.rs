@@ -20,7 +20,9 @@ pub async fn run(no_scan: bool, from_notion: Option<String>, resume: bool) -> Re
         let result = scan::run()?;
 
         if result.domains.is_empty() {
-            ui::info("No domains detected. You can add them manually with `project-wiki add domain <name>`.");
+            ui::info(
+                "No domains detected. You can add them manually with `project-wiki add domain <name>`.",
+            );
             if from_notion.is_none() {
                 return Ok(());
             }
@@ -32,27 +34,27 @@ pub async fn run(no_scan: bool, from_notion: Option<String>, resume: bool) -> Re
             for domain in &result.domains {
                 let domain_dir = Path::new(".wiki/domains").join(&domain.name);
                 fs::create_dir_all(&domain_dir).with_context(|| {
-                    format!("Failed to create domain directory: {}", domain_dir.display())
+                    format!(
+                        "Failed to create domain directory: {}",
+                        domain_dir.display()
+                    )
                 })?;
 
                 let overview_content = scan::generate_domain_overview(domain, &result.domains);
                 let overview_path = domain_dir.join("_overview.md");
-                fs::write(&overview_path, &overview_content).with_context(|| {
-                    format!("Failed to write {}", overview_path.display())
-                })?;
+                fs::write(&overview_path, &overview_content)
+                    .with_context(|| format!("Failed to write {}", overview_path.display()))?;
             }
 
             // Generate _graph.md
             ui::step("Generating dependency graph...");
             let graph_content = scan::generate_graph(&result.domains);
-            fs::write(".wiki/_graph.md", &graph_content)
-                .context("Failed to write _graph.md")?;
+            fs::write(".wiki/_graph.md", &graph_content).context("Failed to write _graph.md")?;
 
             // Generate _index.md
             ui::step("Generating wiki index...");
             let index_content = scan::generate_index(&result.domains, &date);
-            fs::write(".wiki/_index.md", &index_content)
-                .context("Failed to write _index.md")?;
+            fs::write(".wiki/_index.md", &index_content).context("Failed to write _index.md")?;
 
             // Generate _needs-review.md
             ui::step("Writing needs-review with collected TODOs...");
@@ -111,10 +113,7 @@ pub async fn run(no_scan: bool, from_notion: Option<String>, resume: bool) -> Re
 
 /// Merge Notion domain data into existing wiki notes.
 #[cfg(feature = "notion")]
-fn merge_notion_data(
-    wiki_dir: &Path,
-    notion_domains: &[notion::NotionDomainInfo],
-) -> Result<()> {
+fn merge_notion_data(wiki_dir: &Path, notion_domains: &[notion::NotionDomainInfo]) -> Result<()> {
     let date = chrono::Utc::now().format("%Y-%m-%d").to_string();
     let mut all_contradictions: Vec<(String, String, String)> = Vec::new(); // (domain, ticket1, ticket2)
 
@@ -154,10 +153,7 @@ fn merge_notion_data(
             if !domain_info.tickets.is_empty() {
                 content.push_str("\n## Notion tickets\n\n");
                 for ticket in &domain_info.tickets {
-                    let status = ticket
-                        .status
-                        .as_deref()
-                        .unwrap_or("\u{2014}");
+                    let status = ticket.status.as_deref().unwrap_or("\u{2014}");
                     content.push_str(&format!(
                         "- **{}** ({}){}\n",
                         ticket.title,
@@ -236,14 +232,10 @@ fn merge_notion_data(
         content.push_str("> These ticket pairs may contain contradictory information. The newer ticket likely supersedes the older one.\n\n");
 
         for (domain, t1, t2) in &all_contradictions {
-            content.push_str(&format!(
-                "- **{}**: \"{}\" vs \"{}\"\n",
-                domain, t1, t2
-            ));
+            content.push_str(&format!("- **{}**: \"{}\" vs \"{}\"\n", domain, t1, t2));
         }
 
-        fs::write(&needs_review_path, content)
-            .context("Failed to write _needs-review.md")?;
+        fs::write(&needs_review_path, content).context("Failed to write _needs-review.md")?;
 
         ui::warn(&format!(
             "{} contradiction(s) found. See _needs-review.md.",

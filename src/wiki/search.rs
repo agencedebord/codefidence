@@ -14,12 +14,9 @@ pub fn run(term: &str) -> Result<()> {
     let mut total_matches: usize = 0;
 
     // Search all .md files in the entire .wiki/ directory
-    for entry in WalkDir::new(wiki_dir)
-        .into_iter()
-        .filter_map(|e| e.ok())
-    {
+    for entry in WalkDir::new(wiki_dir).into_iter().filter_map(|e| e.ok()) {
         let path = entry.path();
-        if !path.extension().map_or(false, |ext| ext == "md") {
+        if path.extension().is_none_or(|ext| ext != "md") {
             continue;
         }
 
@@ -146,7 +143,10 @@ fn highlight_term(line: &str, term_lower: &str, _original_term: &str) -> String 
         let orig_end = lower_to_orig[lower_end];
 
         result.push_str(&line[last_orig_end..orig_start]);
-        result.push_str(&format!("{}", style(&line[orig_start..orig_end]).bold().cyan()));
+        result.push_str(&format!(
+            "{}",
+            style(&line[orig_start..orig_end]).bold().cyan()
+        ));
         last_orig_end = orig_end;
     }
     result.push_str(&line[last_orig_end..]);
@@ -159,10 +159,7 @@ fn search_in_dir(wiki_dir: &std::path::Path, term: &str) -> Result<Vec<SearchRes
     let term_lower = term.to_lowercase();
     let mut results: Vec<SearchResult> = Vec::new();
 
-    for entry in WalkDir::new(wiki_dir)
-        .into_iter()
-        .filter_map(|e| e.ok())
-    {
+    for entry in WalkDir::new(wiki_dir).into_iter().filter_map(|e| e.ok()) {
         let path = entry.path();
         if !path.extension().map_or(false, |ext| ext == "md") {
             continue;

@@ -2,7 +2,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::LazyLock;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use regex::Regex;
 use walkdir::WalkDir;
 
@@ -14,8 +14,22 @@ pub static LINK_RE: LazyLock<Regex> =
 
 /// Directories whose immediate children are considered domain candidates.
 pub const DOMAIN_PARENT_DIRS: &[&str] = &[
-    "services", "modules", "features", "app", "lib", "packages", "controllers", "routes",
-    "models", "api", "components", "handlers", "domains", "core", "plugins", "apps",
+    "services",
+    "modules",
+    "features",
+    "app",
+    "lib",
+    "packages",
+    "controllers",
+    "routes",
+    "models",
+    "api",
+    "components",
+    "handlers",
+    "domains",
+    "core",
+    "plugins",
+    "apps",
 ];
 
 /// Resolve the wiki root directory. Searches from the current directory upward.
@@ -58,7 +72,7 @@ pub fn collect_all_notes(wiki_dir: &Path) -> Result<Vec<WikiNote>> {
         .filter_map(|e| e.ok())
     {
         let path = entry.path();
-        if path.extension().map_or(false, |ext| ext == "md") {
+        if path.extension().is_some_and(|ext| ext == "md") {
             if let Ok(note) = WikiNote::parse(path) {
                 notes.push(note);
             }

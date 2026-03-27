@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use chrono::Utc;
 use walkdir::WalkDir;
 
@@ -142,18 +142,20 @@ fn rename_domain_in(wiki_dir: &Path, old: &str, new: &str) -> Result<()> {
     }
 
     // 1. Rename the directory
-    fs::rename(&old_dir, &new_dir)
-        .with_context(|| format!("Failed to rename {} -> {}", old_dir.display(), new_dir.display()))?;
+    fs::rename(&old_dir, &new_dir).with_context(|| {
+        format!(
+            "Failed to rename {} -> {}",
+            old_dir.display(),
+            new_dir.display()
+        )
+    })?;
 
     ui::step(&format!("Renamed directory: {} -> {}", old, new));
 
     // 2. Update domain references in front matter of notes in the renamed domain
-    for entry in WalkDir::new(&new_dir)
-        .into_iter()
-        .filter_map(|e| e.ok())
-    {
+    for entry in WalkDir::new(&new_dir).into_iter().filter_map(|e| e.ok()) {
         let path = entry.path();
-        if path.extension().map_or(false, |ext| ext == "md") {
+        if path.extension().is_some_and(|ext| ext == "md") {
             if let Ok(content) = fs::read_to_string(path) {
                 let updated = update_domain_references_in_content(&content, old, new);
                 if updated != content {
@@ -167,12 +169,9 @@ fn rename_domain_in(wiki_dir: &Path, old: &str, new: &str) -> Result<()> {
 
     // 3. Update cross-references in ALL wiki markdown files
     let mut updated_count = 0;
-    for entry in WalkDir::new(wiki_dir)
-        .into_iter()
-        .filter_map(|e| e.ok())
-    {
+    for entry in WalkDir::new(wiki_dir).into_iter().filter_map(|e| e.ok()) {
         let path = entry.path();
-        if path.extension().map_or(false, |ext| ext == "md") {
+        if path.extension().is_some_and(|ext| ext == "md") {
             if let Ok(content) = fs::read_to_string(path) {
                 let updated = update_cross_references(&content, old, new);
                 if updated != content {
@@ -185,7 +184,10 @@ fn rename_domain_in(wiki_dir: &Path, old: &str, new: &str) -> Result<()> {
     }
 
     if updated_count > 0 {
-        ui::step(&format!("Updated cross-references in {} file(s)", updated_count));
+        ui::step(&format!(
+            "Updated cross-references in {} file(s)",
+            updated_count
+        ));
     }
 
     // 4. Regenerate graph and index
@@ -263,23 +265,23 @@ fn import_folder_in(wiki_dir: &Path, folder: &str, domain: Option<&str>) -> Resu
             .map(|n| n.to_string_lossy().to_string())
             .unwrap_or_else(|| "imported".to_string())
             .to_lowercase()
-            .replace(' ', "-")
-            .replace('_', "-"),
+            .replace([' ', '_'], "-"),
     };
 
     let domain_dir = wiki_dir.join("domains").join(&domain_name);
-    fs::create_dir_all(&domain_dir)
-        .with_context(|| format!("Failed to create domain directory: {}", domain_dir.display()))?;
+    fs::create_dir_all(&domain_dir).with_context(|| {
+        format!(
+            "Failed to create domain directory: {}",
+            domain_dir.display()
+        )
+    })?;
 
     let date = today();
     let mut imported_count = 0;
 
-    for entry in WalkDir::new(source)
-        .into_iter()
-        .filter_map(|e| e.ok())
-    {
+    for entry in WalkDir::new(source).into_iter().filter_map(|e| e.ok()) {
         let path = entry.path();
-        if !path.extension().map_or(false, |ext| ext == "md") {
+        if path.extension().is_none_or(|ext| ext != "md") {
             continue;
         }
 
@@ -290,10 +292,7 @@ fn import_folder_in(wiki_dir: &Path, folder: &str, domain: Option<&str>) -> Resu
         let relative = path.strip_prefix(source).unwrap_or(path);
         let target_name = if relative.components().count() > 1 {
             // Flatten subdirectory structure: dir/file.md -> dir-file.md
-            relative
-                .to_string_lossy()
-                .replace('/', "-")
-                .replace('\\', "-")
+            relative.to_string_lossy().replace(['/', '\\'], "-")
         } else {
             relative.to_string_lossy().to_string()
         };
@@ -318,11 +317,7 @@ fn import_folder_in(wiki_dir: &Path, folder: &str, domain: Option<&str>) -> Resu
         fs::write(&target_path, &final_content)
             .with_context(|| format!("Failed to write {}", target_path.display()))?;
 
-        ui::step(&format!(
-            "{} -> {}",
-            path.display(),
-            target_path.display()
-        ));
+        ui::step(&format!("{} -> {}", path.display(), target_path.display()));
         imported_count += 1;
     }
 
@@ -452,7 +447,8 @@ mod tests {
         let dir = TempDir::new().unwrap();
         let wiki = setup_wiki(&dir);
 
-        let content = "---\ntitle: Test\nconfidence: inferred\nlast_updated: \"2020-01-01\"\n---\nContent\n";
+        let content =
+            "---\ntitle: Test\nconfidence: inferred\nlast_updated: \"2020-01-01\"\n---\nContent\n";
         create_domain_with_note(&wiki, "test", "_overview.md", content);
 
         confirm_in(&wiki, "test").unwrap();
@@ -478,7 +474,8 @@ mod tests {
         let dir = TempDir::new().unwrap();
         let wiki = setup_wiki(&dir);
 
-        let content = "---\ntitle: Old domain\nconfidence: confirmed\ndeprecated: false\n---\n# Old\n";
+        let content =
+            "---\ntitle: Old domain\nconfidence: confirmed\ndeprecated: false\n---\n# Old\n";
         create_domain_with_note(&wiki, "old", "_overview.md", content);
 
         deprecate_in(&wiki, "old").unwrap();
@@ -492,7 +489,8 @@ mod tests {
         let dir = TempDir::new().unwrap();
         let wiki = setup_wiki(&dir);
 
-        let content = "---\ntitle: Old domain\nconfidence: confirmed\ndeprecated: true\n---\n# Old\n";
+        let content =
+            "---\ntitle: Old domain\nconfidence: confirmed\ndeprecated: true\n---\n# Old\n";
         create_domain_with_note(&wiki, "old", "_overview.md", content);
 
         // Should not error, just warn
@@ -520,7 +518,8 @@ mod tests {
         let dir = TempDir::new().unwrap();
         let wiki = setup_wiki(&dir);
 
-        let content = "---\ntitle: Billing\nconfidence: confirmed\ndomain: billing\n---\n# Billing\n";
+        let content =
+            "---\ntitle: Billing\nconfidence: confirmed\ndomain: billing\n---\n# Billing\n";
         create_domain_with_note(&wiki, "billing", "_overview.md", content);
 
         rename_domain_in(&wiki, "billing", "payments").unwrap();
@@ -602,7 +601,8 @@ mod tests {
 
         let source = dir.path().join("docs");
         fs::create_dir_all(&source).unwrap();
-        let content = "---\ntitle: My Note\nlast_updated: \"2025-06-15\"\n---\n# My Note\n\nContent.\n";
+        let content =
+            "---\ntitle: My Note\nlast_updated: \"2025-06-15\"\n---\n# My Note\n\nContent.\n";
         fs::write(source.join("note.md"), content).unwrap();
 
         import_folder_in(&wiki, source.to_str().unwrap(), None).unwrap();
@@ -675,7 +675,10 @@ mod tests {
     fn update_cross_references_replaces_paths() {
         let content = "See [billing](domains/billing/_overview.md) for details.\n";
         let result = update_cross_references(content, "billing", "payments");
-        assert_eq!(result, "See [billing](domains/payments/_overview.md) for details.\n");
+        assert_eq!(
+            result,
+            "See [billing](domains/payments/_overview.md) for details.\n"
+        );
     }
 
     #[test]

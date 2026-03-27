@@ -8,10 +8,12 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "kebab-case")]
+#[derive(Default)]
 pub enum Confidence {
     Confirmed,
     Verified,
     SeenInCode,
+    #[default]
     Inferred,
     NeedsValidation,
 }
@@ -25,12 +27,6 @@ impl fmt::Display for Confidence {
             Confidence::Inferred => write!(f, "inferred"),
             Confidence::NeedsValidation => write!(f, "needs-validation"),
         }
-    }
-}
-
-impl Default for Confidence {
-    fn default() -> Self {
-        Confidence::Inferred
     }
 }
 
@@ -66,21 +62,19 @@ pub struct WikiNote {
 
 impl WikiNote {
     pub fn parse(path: &Path) -> Result<Self> {
-        let raw =
-            fs::read_to_string(path).with_context(|| format!("Failed to read {}", path.display()))?;
+        let raw = fs::read_to_string(path)
+            .with_context(|| format!("Failed to read {}", path.display()))?;
 
-        let parsed = gray_matter::Matter::<gray_matter::engine::YAML>::new()
-            .parse(&raw);
+        let parsed = gray_matter::Matter::<gray_matter::engine::YAML>::new().parse(&raw);
 
         let front_matter: FrontMatter = if let Some(pod) = parsed.data {
-            pod.deserialize()
-                .unwrap_or_else(|_| FrontMatter {
-                    title: String::new(),
-                    confidence: Confidence::default(),
-                    last_updated: None,
-                    related_files: Vec::new(),
-                    deprecated: false,
-                })
+            pod.deserialize().unwrap_or_else(|_| FrontMatter {
+                title: String::new(),
+                confidence: Confidence::default(),
+                last_updated: None,
+                related_files: Vec::new(),
+                deprecated: false,
+            })
         } else {
             FrontMatter {
                 title: String::new(),
@@ -91,9 +85,10 @@ impl WikiNote {
             }
         };
 
-        let last_updated = front_matter.last_updated.as_ref().and_then(|s| {
-            NaiveDate::parse_from_str(s, "%Y-%m-%d").ok()
-        });
+        let last_updated = front_matter
+            .last_updated
+            .as_ref()
+            .and_then(|s| NaiveDate::parse_from_str(s, "%Y-%m-%d").ok());
 
         let domain = path
             .parent()
@@ -126,8 +121,7 @@ impl WikiNote {
         let yaml = serde_yml::to_string(&front).context("Failed to serialize front matter")?;
 
         let output = format!("---\n{}---\n{}", yaml, self.content);
-        fs::write(path, output)
-            .with_context(|| format!("Failed to write {}", path.display()))?;
+        fs::write(path, output).with_context(|| format!("Failed to write {}", path.display()))?;
 
         Ok(())
     }

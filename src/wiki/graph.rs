@@ -10,23 +10,26 @@ use crate::ui;
 use crate::wiki::common;
 use crate::wiki::common::LINK_RE;
 
-static SECTION_RE: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"^##\s+").unwrap());
+static SECTION_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^##\s+").unwrap());
 
 /// Returns a sanitized Mermaid node ID safe for `graph LR`.
 /// If the name contains only alphanumeric chars and underscores, return as-is.
 /// Otherwise, replace hyphens (and other problematic chars) with underscores for the ID,
 /// and use bracket notation so the original name is displayed as the label.
 fn mermaid_node(name: &str) -> String {
-    let is_safe = name
-        .chars()
-        .all(|c| c.is_ascii_alphanumeric() || c == '_');
+    let is_safe = name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_');
     if is_safe {
         name.to_string()
     } else {
         let sanitized: String = name
             .chars()
-            .map(|c| if c.is_ascii_alphanumeric() || c == '_' { c } else { '_' })
+            .map(|c| {
+                if c.is_ascii_alphanumeric() || c == '_' {
+                    c
+                } else {
+                    '_'
+                }
+            })
             .collect();
         format!("{}[\"{}\"]", sanitized, name)
     }
@@ -35,14 +38,18 @@ fn mermaid_node(name: &str) -> String {
 /// Returns only the sanitized ID portion (no bracket label).
 /// Use this for edges and style references after the node has already been declared.
 fn mermaid_id(name: &str) -> String {
-    let is_safe = name
-        .chars()
-        .all(|c| c.is_ascii_alphanumeric() || c == '_');
+    let is_safe = name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_');
     if is_safe {
         name.to_string()
     } else {
         name.chars()
-            .map(|c| if c.is_ascii_alphanumeric() || c == '_' { c } else { '_' })
+            .map(|c| {
+                if c.is_ascii_alphanumeric() || c == '_' {
+                    c
+                } else {
+                    '_'
+                }
+            })
             .collect()
     }
 }
@@ -68,10 +75,7 @@ pub fn run() -> Result<()> {
             continue;
         }
 
-        let domain_name = entry
-            .file_name()
-            .to_string_lossy()
-            .to_string();
+        let domain_name = entry.file_name().to_string_lossy().to_string();
 
         all_domains.push(domain_name.clone());
 
@@ -122,9 +126,18 @@ pub fn run() -> Result<()> {
                 mermaid_lines.push(format!("    {}", mermaid_node(target)));
             }
             if label.is_empty() {
-                mermaid_lines.push(format!("    {} --> {}", mermaid_id(source), mermaid_id(target)));
+                mermaid_lines.push(format!(
+                    "    {} --> {}",
+                    mermaid_id(source),
+                    mermaid_id(target)
+                ));
             } else {
-                mermaid_lines.push(format!("    {} -->|{}| {}", mermaid_id(source), label, mermaid_id(target)));
+                mermaid_lines.push(format!(
+                    "    {} -->|{}| {}",
+                    mermaid_id(source),
+                    label,
+                    mermaid_id(target)
+                ));
             }
         }
     }
@@ -239,7 +252,7 @@ fn parse_dependencies_section(content: &str) -> Vec<(String, String)> {
                 // Try to extract a description after the link (e.g., "— imports from X")
                 let after_link = &trimmed[cap.get(0).unwrap().end()..];
                 let desc = after_link
-                    .trim_start_matches(|c: char| c == ' ' || c == '\u{2014}' || c == '-')
+                    .trim_start_matches([' ', '\u{2014}', '-'])
                     .trim()
                     .to_string();
 

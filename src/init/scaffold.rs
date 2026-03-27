@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::Path;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 
 use crate::init::patch_claude;
 use crate::ui;
@@ -36,10 +36,8 @@ pub fn run() -> Result<()> {
     ui::step("Creating .wiki/ directory structure...");
     fs::create_dir_all(".wiki/_templates")
         .context("Failed to create .wiki/_templates directory")?;
-    fs::create_dir_all(".wiki/domains")
-        .context("Failed to create .wiki/domains directory")?;
-    fs::create_dir_all(".wiki/decisions")
-        .context("Failed to create .wiki/decisions directory")?;
+    fs::create_dir_all(".wiki/domains").context("Failed to create .wiki/domains directory")?;
+    fs::create_dir_all(".wiki/decisions").context("Failed to create .wiki/decisions directory")?;
 
     // Write template files
     ui::step("Writing wiki templates...");
@@ -79,8 +77,11 @@ pub fn run() -> Result<()> {
         .context("Failed to write wiki-update.md")?;
     fs::write(".claude/commands/wiki-add-context.md", WIKI_ADD_CONTEXT_CMD)
         .context("Failed to write wiki-add-context.md")?;
-    fs::write(".claude/commands/wiki-add-decision.md", WIKI_ADD_DECISION_CMD)
-        .context("Failed to write wiki-add-decision.md")?;
+    fs::write(
+        ".claude/commands/wiki-add-decision.md",
+        WIKI_ADD_DECISION_CMD,
+    )
+    .context("Failed to write wiki-add-decision.md")?;
 
     // Patch CLAUDE.md
     ui::step("Patching CLAUDE.md...");

@@ -124,15 +124,10 @@ pub fn run() -> Result<()> {
         ui::header("Domains");
         let today = Utc::now().date_naive();
         for domain_name in &domains {
-            let domain_notes: Vec<&WikiNote> = notes
-                .iter()
-                .filter(|n| n.domain == *domain_name)
-                .collect();
+            let domain_notes: Vec<&WikiNote> =
+                notes.iter().filter(|n| n.domain == *domain_name).collect();
 
-            let latest_update = domain_notes
-                .iter()
-                .filter_map(|n| n.last_updated)
-                .max();
+            let latest_update = domain_notes.iter().filter_map(|n| n.last_updated).max();
 
             let (detail, is_stale) = match latest_update {
                 Some(date) => {
@@ -164,11 +159,7 @@ pub fn run() -> Result<()> {
                 stale_notes.len()
             ));
             for note_path in &stale_notes {
-                eprintln!(
-                    "{}    {}",
-                    style("│").dim(),
-                    style(note_path).dim()
-                );
+                eprintln!("{}    {}", style("│").dim(), style(note_path).dim());
             }
         }
         if open_questions > 0 {
@@ -201,11 +192,7 @@ fn count_decisions() -> Result<usize> {
     let count = fs::read_dir(decisions_dir)
         .context("Failed to read .wiki/decisions")?
         .filter_map(|e| e.ok())
-        .filter(|e| {
-            e.path()
-                .extension()
-                .map_or(false, |ext| ext == "md")
-        })
+        .filter(|e| e.path().extension().is_some_and(|ext| ext == "md"))
         .count();
 
     Ok(count)
@@ -217,7 +204,7 @@ fn find_stale(notes: &[WikiNote]) -> Vec<String> {
         .iter()
         .filter(|n| {
             n.last_updated
-                .map_or(false, |date| (today - date).num_days() > 30)
+                .is_some_and(|date| (today - date).num_days() > 30)
         })
         .map(|n| n.path.clone())
         .collect()

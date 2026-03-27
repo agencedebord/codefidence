@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use serde::{Deserialize, Serialize};
 use walkdir::WalkDir;
 
@@ -25,8 +25,7 @@ pub fn index(wiki_dir: &Path) -> Result<()> {
 
     // Prepare the .vectors directory for future use
     let vectors_dir = wiki_dir.join(".vectors");
-    fs::create_dir_all(&vectors_dir)
-        .context("Failed to create .vectors directory")?;
+    fs::create_dir_all(&vectors_dir).context("Failed to create .vectors directory")?;
 
     // Walk all notes and build a hash index (placeholder)
     let domains_dir = wiki_dir.join("domains");
@@ -38,7 +37,7 @@ pub fn index(wiki_dir: &Path) -> Result<()> {
             .filter_map(|e| e.ok())
         {
             let path = entry.path();
-            if path.extension().map_or(false, |ext| ext == "md") {
+            if path.extension().is_some_and(|ext| ext == "md") {
                 if let Ok(content) = fs::read_to_string(path) {
                     let hash = simple_hash(&content);
                     let rel_path = path
@@ -59,8 +58,7 @@ pub fn index(wiki_dir: &Path) -> Result<()> {
     };
 
     let index_path = vectors_dir.join("index.json");
-    let json = serde_json::to_string_pretty(&index)
-        .context("Failed to serialize vector index")?;
+    let json = serde_json::to_string_pretty(&index).context("Failed to serialize vector index")?;
     fs::write(&index_path, json)
         .with_context(|| format!("Failed to write {}", index_path.display()))?;
 
@@ -145,7 +143,16 @@ mod tests {
         let index_content = fs::read_to_string(wiki_dir.join(".vectors/index.json")).unwrap();
         let parsed: VectorIndex = serde_json::from_str(&index_content).unwrap();
         assert_eq!(parsed.entries.len(), 1);
-        assert!(parsed.entries.contains_key("domains/billing/_overview.md"));
+        // Path separator differs on Windows vs Unix
+        let has_entry = parsed
+            .entries
+            .keys()
+            .any(|k| k.ends_with("_overview.md") && k.contains("billing"));
+        assert!(
+            has_entry,
+            "Expected a billing/_overview.md entry, got: {:?}",
+            parsed.entries.keys().collect::<Vec<_>>()
+        );
     }
 
     #[test]
@@ -170,7 +177,10 @@ mod tests {
     #[test]
     fn vector_index_serialization_roundtrip() {
         let mut entries = HashMap::new();
-        entries.insert("domains/auth/_overview.md".to_string(), "abc123".to_string());
+        entries.insert(
+            "domains/auth/_overview.md".to_string(),
+            "abc123".to_string(),
+        );
 
         let index = VectorIndex {
             version: 1,

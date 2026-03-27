@@ -6,9 +6,9 @@ use proptest::prelude::*;
 #[cfg(test)]
 mod property_tests {
     use super::*;
+    use assert_cmd::Command;
     use std::fs;
     use tempfile::TempDir;
-    use assert_cmd::Command;
 
     // The init command should never panic regardless of directory state
     proptest! {
