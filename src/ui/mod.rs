@@ -11,7 +11,6 @@ const MARKER_STEP: &str = "├";
 const MARKER_STEP_LAST: &str = "└";
 const MARKER_START: &str = "┌";
 const MARKER_DIAMOND: &str = "◆";
-const MARKER_DIAMOND_OPEN: &str = "◇";
 
 // ─── Gradient helpers ───
 
@@ -142,15 +141,6 @@ pub fn warn(msg: &str) {
 /// Print an error message.
 pub fn error(msg: &str) {
     eprintln!("{} {}", style(MARKER_ERROR).red().bold(), style(msg).red());
-}
-
-/// Print a "coming soon" message.
-pub fn coming_soon(command: &str) {
-    eprintln!(
-        "{}  {} is coming soon.",
-        style(MARKER_DIAMOND_OPEN).magenta(),
-        style(command).magenta().bold()
-    );
 }
 
 /// Print a section header.

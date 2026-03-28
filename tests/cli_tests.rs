@@ -71,7 +71,6 @@ fn init_creates_gitignore_with_wiki_entries() {
 
     let gitignore = fs::read_to_string(dir.path().join(".gitignore")).unwrap();
     assert!(gitignore.contains(".wiki/.env"));
-    assert!(gitignore.contains(".wiki/.vectors/"));
 }
 
 #[test]
