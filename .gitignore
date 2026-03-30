@@ -1,5 +1,8 @@
 /target
 
-# Project Wiki (generated at runtime, not source)
-.wiki/
+# Project Wiki derived artifacts (runtime-generated, not source)
+.wiki/.file-index.json
+.wiki/_index.json
+.wiki/_needs-review.md
+
 CLAUDE.md
