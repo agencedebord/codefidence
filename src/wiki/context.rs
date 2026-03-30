@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::wiki::common::{ensure_wiki_exists, find_wiki_root};
 use crate::wiki::file_index;
-use crate::wiki::note::{Confidence, WikiNote};
+use crate::wiki::note::{Confidence, MemoryItem, MemoryItemStatus, MemoryItemType, WikiNote};
 
 /// Maximum length for the compact context injected into Claude's context window.
 const MAX_CONTEXT_LEN: usize = 2000;
@@ -113,11 +113,26 @@ pub fn resolve_context(
     }
 
     let note = WikiNote::parse(&overview_path)?;
-    Ok(Some(compact_summary(&note, &domain)))
+    Ok(Some(compact_summary(&note, &domain, file_path)))
 }
 
+/// Maximum number of memory items to include in context output.
+const MAX_MEMORY_ITEMS: usize = 3;
+
 /// Format a WikiNote into a compact summary for LLM context injection.
-pub fn compact_summary(note: &WikiNote, domain: &str) -> String {
+///
+/// If the note has structured `memory_items`, uses prioritized v1 format.
+/// Otherwise, falls back to extracting sections from markdown content.
+pub fn compact_summary(note: &WikiNote, domain: &str, file_path: &str) -> String {
+    if note.memory_items.is_empty() {
+        compact_summary_fallback(note, domain)
+    } else {
+        compact_summary_v1(note, domain, file_path)
+    }
+}
+
+/// V1 format: structured memory items with type-based prioritization.
+fn compact_summary_v1(note: &WikiNote, domain: &str, file_path: &str) -> String {
     let updated = note
         .last_updated
         .map(|d| d.to_string())
@@ -130,7 +145,92 @@ pub fn compact_summary(note: &WikiNote, domain: &str) -> String {
         domain, note.confidence, updated
     ));
 
-    // Extract key sections from the markdown content
+    // Prioritize and select memory items
+    let prioritized = prioritize_memory_items(&note.memory_items, file_path, MAX_MEMORY_ITEMS);
+    let total_active = note
+        .memory_items
+        .iter()
+        .filter(|i| matches!(i.status, MemoryItemStatus::Active))
+        .count();
+
+    if !prioritized.is_empty() {
+        parts.push("Memory:".to_string());
+        for item in &prioritized {
+            parts.push(format!(
+                "  [{}] {} [{}]",
+                item.type_, item.text, item.confidence
+            ));
+        }
+        if total_active > prioritized.len() {
+            parts.push(format!(
+                "  (+{} more items)",
+                total_active - prioritized.len()
+            ));
+        }
+    }
+
+    // Dependencies from markdown (still useful alongside memory items)
+    let sections = extract_sections(&note.content);
+    if let Some(deps) = sections.get("dependencies") {
+        let items = extract_bullet_points(deps, 10);
+        if !items.is_empty() {
+            parts.push(format!("Dependencies: {}", items.join(", ")));
+        }
+    }
+
+    if !note.related_files.is_empty() {
+        let files: Vec<&str> = note
+            .related_files
+            .iter()
+            .take(10)
+            .map(|s| s.as_str())
+            .collect();
+        parts.push(format!("Related files: {}", files.join(", ")));
+    }
+
+    // Warnings
+    let low_confidence_count = note
+        .memory_items
+        .iter()
+        .filter(|i| {
+            matches!(
+                i.confidence,
+                Confidence::Inferred | Confidence::NeedsValidation
+            ) && matches!(i.status, MemoryItemStatus::Active)
+        })
+        .count();
+
+    if low_confidence_count > 0 {
+        parts.push(format!(
+            "WARNING: {} item(s) have low confidence — verify before relying on them.",
+            low_confidence_count
+        ));
+    } else if note.confidence == Confidence::NeedsValidation
+        || note.confidence == Confidence::Inferred
+    {
+        parts.push(format!(
+            "WARNING: This wiki note has low confidence ({}). Verify before relying on it.",
+            note.confidence
+        ));
+    }
+
+    truncate_output(parts.join("\n"))
+}
+
+/// Fallback format: extract sections from markdown (for notes without memory_items).
+fn compact_summary_fallback(note: &WikiNote, domain: &str) -> String {
+    let updated = note
+        .last_updated
+        .map(|d| d.to_string())
+        .unwrap_or_else(|| "unknown".to_string());
+
+    let mut parts = Vec::new();
+
+    parts.push(format!(
+        "[project-wiki] Domain: {} (confidence: {}, updated: {})",
+        domain, note.confidence, updated
+    ));
+
     let sections = extract_sections(&note.content);
 
     if let Some(behaviors) = sections.get("key behaviors") {
@@ -171,9 +271,76 @@ pub fn compact_summary(note: &WikiNote, domain: &str) -> String {
         ));
     }
 
-    let result = parts.join("\n");
+    truncate_output(parts.join("\n"))
+}
 
-    // Truncate if too long
+// ─── Prioritization ───
+
+/// Sort and select the top memory items for context injection.
+///
+/// Priority order:
+/// 1. Type: exception > decision > business_rule
+/// 2. Confidence: confirmed/verified > seen-in-code > inferred > needs-validation
+/// 3. Related file match: items whose related_files match the queried file come first
+fn prioritize_memory_items<'a>(
+    items: &'a [MemoryItem],
+    file_path: &str,
+    max: usize,
+) -> Vec<&'a MemoryItem> {
+    let mut active_items: Vec<&MemoryItem> = items
+        .iter()
+        .filter(|i| matches!(i.status, MemoryItemStatus::Active))
+        .collect();
+
+    active_items.sort_by(|a, b| {
+        let key_a = (
+            type_priority(&a.type_),
+            confidence_priority(&a.confidence),
+            if has_related_file(a, file_path) {
+                0u8
+            } else {
+                1u8
+            },
+        );
+        let key_b = (
+            type_priority(&b.type_),
+            confidence_priority(&b.confidence),
+            if has_related_file(b, file_path) {
+                0u8
+            } else {
+                1u8
+            },
+        );
+        key_a.cmp(&key_b)
+    });
+
+    active_items.into_iter().take(max).collect()
+}
+
+fn type_priority(t: &MemoryItemType) -> u8 {
+    match t {
+        MemoryItemType::Exception => 0,
+        MemoryItemType::Decision => 1,
+        MemoryItemType::BusinessRule => 2,
+    }
+}
+
+fn confidence_priority(c: &Confidence) -> u8 {
+    match c {
+        Confidence::Confirmed | Confidence::Verified => 0,
+        Confidence::SeenInCode => 1,
+        Confidence::Inferred => 2,
+        Confidence::NeedsValidation => 3,
+    }
+}
+
+fn has_related_file(item: &MemoryItem, file_path: &str) -> bool {
+    item.related_files.iter().any(|f| f == file_path)
+}
+
+// ─── Helpers ───
+
+fn truncate_output(result: String) -> String {
     if result.len() > MAX_CONTEXT_LEN {
         let mut truncated = result[..MAX_CONTEXT_LEN - 20].to_string();
         truncated.push_str("\n[... truncated]");
@@ -183,9 +350,7 @@ pub fn compact_summary(note: &WikiNote, domain: &str) -> String {
     }
 }
 
-// ─── Helpers ───
-
-/// Extract markdown sections (## heading → body) from content.
+/// Extract markdown sections (## heading -> body) from content.
 fn extract_sections(content: &str) -> std::collections::HashMap<String, String> {
     let mut sections = std::collections::HashMap::new();
     let mut current_heading = String::new();
@@ -193,7 +358,6 @@ fn extract_sections(content: &str) -> std::collections::HashMap<String, String> 
 
     for line in content.lines() {
         if line.starts_with("## ") {
-            // Save previous section
             if !current_heading.is_empty() {
                 sections.insert(
                     current_heading.to_lowercase(),
@@ -208,7 +372,6 @@ fn extract_sections(content: &str) -> std::collections::HashMap<String, String> 
         }
     }
 
-    // Save last section
     if !current_heading.is_empty() {
         sections.insert(
             current_heading.to_lowercase(),
@@ -230,14 +393,16 @@ fn extract_bullet_points(body: &str, max: usize) -> Vec<String> {
                 .trim()
                 .to_string()
         })
-        .filter(|s| !s.is_empty() && !s.starts_with('_')) // Skip "_None detected._" placeholders
+        .filter(|s| !s.is_empty() && !s.starts_with('_'))
         .collect()
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::wiki::note::Confidence;
+    use crate::wiki::note::{
+        Confidence, MemoryItem, MemoryItemSource, MemoryItemStatus, MemoryItemType,
+    };
     use chrono::NaiveDate;
 
     fn make_note(domain: &str, confidence: Confidence, content: &str) -> WikiNote {
@@ -254,6 +419,48 @@ mod tests {
         }
     }
 
+    fn make_item(
+        id: &str,
+        type_: MemoryItemType,
+        text: &str,
+        confidence: Confidence,
+    ) -> MemoryItem {
+        MemoryItem {
+            id: id.to_string(),
+            type_,
+            text: text.to_string(),
+            confidence,
+            related_files: Vec::new(),
+            sources: vec![MemoryItemSource {
+                kind: "file".to_string(),
+                ref_: "src/test.ts".to_string(),
+                line: None,
+            }],
+            status: MemoryItemStatus::Active,
+            last_reviewed: None,
+        }
+    }
+
+    fn make_note_with_items(
+        domain: &str,
+        confidence: Confidence,
+        items: Vec<MemoryItem>,
+    ) -> WikiNote {
+        WikiNote {
+            path: format!(".wiki/domains/{}/_overview.md", domain),
+            domain: domain.to_string(),
+            confidence,
+            last_updated: Some(NaiveDate::from_ymd_opt(2026, 3, 28).unwrap()),
+            related_files: vec![format!("src/{}/main.ts", domain)],
+            deprecated: false,
+            title: format!("{} overview", domain),
+            content: "## Dependencies\n- payments\n- taxes\n".to_string(),
+            memory_items: items,
+        }
+    }
+
+    // ─── Fallback tests (notes without memory_items) ───
+
     #[test]
     fn compact_summary_includes_domain_info() {
         let note = make_note(
@@ -261,7 +468,7 @@ mod tests {
             Confidence::Confirmed,
             "## Key behaviors\n- Generates invoices\n- Handles refunds\n",
         );
-        let summary = compact_summary(&note, "billing");
+        let summary = compact_summary(&note, "billing", "src/billing/main.ts");
 
         assert!(summary.contains("[project-wiki] Domain: billing"));
         assert!(summary.contains("confirmed"));
@@ -275,7 +482,7 @@ mod tests {
             Confidence::Confirmed,
             "## Key behaviors\n- Generates invoices\n- Handles refunds\n",
         );
-        let summary = compact_summary(&note, "billing");
+        let summary = compact_summary(&note, "billing", "src/billing/main.ts");
 
         assert!(summary.contains("Generates invoices"));
         assert!(summary.contains("Handles refunds"));
@@ -288,7 +495,7 @@ mod tests {
             Confidence::Confirmed,
             "## Business rules\n- No dedup on import\n",
         );
-        let summary = compact_summary(&note, "billing");
+        let summary = compact_summary(&note, "billing", "src/billing/main.ts");
 
         assert!(summary.contains("No dedup on import"));
     }
@@ -296,7 +503,7 @@ mod tests {
     #[test]
     fn compact_summary_includes_related_files() {
         let note = make_note("billing", Confidence::Confirmed, "# Billing\n");
-        let summary = compact_summary(&note, "billing");
+        let summary = compact_summary(&note, "billing", "src/billing/main.ts");
 
         assert!(summary.contains("src/billing/main.ts"));
     }
@@ -304,7 +511,7 @@ mod tests {
     #[test]
     fn compact_summary_warns_on_low_confidence() {
         let note = make_note("billing", Confidence::NeedsValidation, "# Billing\n");
-        let summary = compact_summary(&note, "billing");
+        let summary = compact_summary(&note, "billing", "src/billing/main.ts");
 
         assert!(summary.contains("WARNING"));
         assert!(summary.contains("needs-validation"));
@@ -313,14 +520,13 @@ mod tests {
     #[test]
     fn compact_summary_no_warning_on_confirmed() {
         let note = make_note("billing", Confidence::Confirmed, "# Billing\n");
-        let summary = compact_summary(&note, "billing");
+        let summary = compact_summary(&note, "billing", "src/billing/main.ts");
 
         assert!(!summary.contains("WARNING"));
     }
 
     #[test]
     fn compact_summary_truncates_long_content() {
-        // Build content with many sections to exceed MAX_CONTEXT_LEN
         let mut long_content = String::new();
         for section in &[
             "Key behaviors",
@@ -337,11 +543,10 @@ mod tests {
             }
         }
         let mut note = make_note("billing", Confidence::Confirmed, &long_content);
-        // Add many related files to further increase length
         note.related_files = (0..50)
             .map(|i| format!("src/billing/very/deep/nested/module_{}/handler.ts", i))
             .collect();
-        let summary = compact_summary(&note, "billing");
+        let summary = compact_summary(&note, "billing", "src/billing/main.ts");
 
         assert!(summary.len() <= MAX_CONTEXT_LEN);
         assert!(summary.contains("[... truncated]"));
@@ -370,5 +575,304 @@ mod tests {
         let items = extract_bullet_points(body, 10);
         assert_eq!(items.len(), 1);
         assert_eq!(items[0], "Real item");
+    }
+
+    // ─── V1 tests (notes with memory_items) ───
+
+    #[test]
+    fn context_v1_prioritize_exception_first() {
+        let items = vec![
+            make_item(
+                "b-001",
+                MemoryItemType::BusinessRule,
+                "Rule A",
+                Confidence::Confirmed,
+            ),
+            make_item(
+                "b-002",
+                MemoryItemType::Decision,
+                "Decision B",
+                Confidence::Confirmed,
+            ),
+            make_item(
+                "b-003",
+                MemoryItemType::Exception,
+                "Exception C",
+                Confidence::Confirmed,
+            ),
+        ];
+        let note = make_note_with_items("billing", Confidence::Confirmed, items);
+        let summary = compact_summary(&note, "billing", "src/billing/main.ts");
+
+        let exc_pos = summary.find("[exception]").unwrap();
+        let dec_pos = summary.find("[decision]").unwrap();
+        let rule_pos = summary.find("[business_rule]").unwrap();
+        assert!(exc_pos < dec_pos, "exception should come before decision");
+        assert!(
+            dec_pos < rule_pos,
+            "decision should come before business_rule"
+        );
+    }
+
+    #[test]
+    fn context_v1_secondary_sort_by_confidence() {
+        let items = vec![
+            make_item(
+                "b-001",
+                MemoryItemType::Decision,
+                "Inferred decision",
+                Confidence::Inferred,
+            ),
+            make_item(
+                "b-002",
+                MemoryItemType::Decision,
+                "Confirmed decision",
+                Confidence::Confirmed,
+            ),
+        ];
+        let note = make_note_with_items("billing", Confidence::Confirmed, items);
+        let summary = compact_summary(&note, "billing", "src/billing/main.ts");
+
+        let confirmed_pos = summary.find("Confirmed decision").unwrap();
+        let inferred_pos = summary.find("Inferred decision").unwrap();
+        assert!(
+            confirmed_pos < inferred_pos,
+            "confirmed should come before inferred"
+        );
+    }
+
+    #[test]
+    fn context_v1_secondary_sort_by_related_file() {
+        let mut item_related = make_item(
+            "b-001",
+            MemoryItemType::Decision,
+            "Related decision",
+            Confidence::Confirmed,
+        );
+        item_related.related_files = vec!["src/billing/invoice.ts".to_string()];
+
+        let item_unrelated = make_item(
+            "b-002",
+            MemoryItemType::Decision,
+            "Unrelated decision",
+            Confidence::Confirmed,
+        );
+
+        let note = make_note_with_items(
+            "billing",
+            Confidence::Confirmed,
+            vec![item_unrelated, item_related],
+        );
+        let summary = compact_summary(&note, "billing", "src/billing/invoice.ts");
+
+        let related_pos = summary.find("Related decision").unwrap();
+        let unrelated_pos = summary.find("Unrelated decision").unwrap();
+        assert!(
+            related_pos < unrelated_pos,
+            "related file match should come first"
+        );
+    }
+
+    #[test]
+    fn context_v1_limit_3_items() {
+        let items = vec![
+            make_item(
+                "b-001",
+                MemoryItemType::Exception,
+                "Exc 1",
+                Confidence::Confirmed,
+            ),
+            make_item(
+                "b-002",
+                MemoryItemType::Decision,
+                "Dec 2",
+                Confidence::Confirmed,
+            ),
+            make_item(
+                "b-003",
+                MemoryItemType::BusinessRule,
+                "Rule 3",
+                Confidence::Confirmed,
+            ),
+            make_item(
+                "b-004",
+                MemoryItemType::BusinessRule,
+                "Rule 4",
+                Confidence::Confirmed,
+            ),
+            make_item(
+                "b-005",
+                MemoryItemType::BusinessRule,
+                "Rule 5",
+                Confidence::Confirmed,
+            ),
+        ];
+        let note = make_note_with_items("billing", Confidence::Confirmed, items);
+        let summary = compact_summary(&note, "billing", "src/billing/main.ts");
+
+        assert!(summary.contains("Exc 1"));
+        assert!(summary.contains("Dec 2"));
+        assert!(summary.contains("Rule 3"));
+        assert!(!summary.contains("Rule 4"));
+        assert!(!summary.contains("Rule 5"));
+        assert!(summary.contains("(+2 more items)"));
+    }
+
+    #[test]
+    fn context_v1_format_type_and_confidence_brackets() {
+        let items = vec![make_item(
+            "b-001",
+            MemoryItemType::Exception,
+            "Client X uses old calc",
+            Confidence::Confirmed,
+        )];
+        let note = make_note_with_items("billing", Confidence::Confirmed, items);
+        let summary = compact_summary(&note, "billing", "src/billing/main.ts");
+
+        assert!(summary.contains("[exception] Client X uses old calc [confirmed]"));
+    }
+
+    #[test]
+    fn context_v1_warning_low_confidence_items() {
+        let items = vec![
+            make_item(
+                "b-001",
+                MemoryItemType::Decision,
+                "Dec A",
+                Confidence::Confirmed,
+            ),
+            make_item(
+                "b-002",
+                MemoryItemType::BusinessRule,
+                "Rule B",
+                Confidence::Inferred,
+            ),
+        ];
+        let note = make_note_with_items("billing", Confidence::Confirmed, items);
+        let summary = compact_summary(&note, "billing", "src/billing/main.ts");
+
+        assert!(summary.contains("WARNING"));
+        assert!(summary.contains("1 item(s) have low confidence"));
+    }
+
+    #[test]
+    fn context_v1_no_warning_all_confirmed() {
+        let items = vec![make_item(
+            "b-001",
+            MemoryItemType::Decision,
+            "Dec A",
+            Confidence::Confirmed,
+        )];
+        let note = make_note_with_items("billing", Confidence::Confirmed, items);
+        let summary = compact_summary(&note, "billing", "src/billing/main.ts");
+
+        assert!(!summary.contains("WARNING"));
+    }
+
+    #[test]
+    fn context_v1_includes_dependencies() {
+        let items = vec![make_item(
+            "b-001",
+            MemoryItemType::Decision,
+            "Dec A",
+            Confidence::Confirmed,
+        )];
+        let note = make_note_with_items("billing", Confidence::Confirmed, items);
+        let summary = compact_summary(&note, "billing", "src/billing/main.ts");
+
+        assert!(summary.contains("Dependencies: payments, taxes"));
+    }
+
+    #[test]
+    fn context_v1_filters_deprecated_items() {
+        let mut deprecated_item = make_item(
+            "b-001",
+            MemoryItemType::Exception,
+            "Old exception",
+            Confidence::Confirmed,
+        );
+        deprecated_item.status = MemoryItemStatus::Deprecated;
+
+        let active_item = make_item(
+            "b-002",
+            MemoryItemType::Decision,
+            "Active decision",
+            Confidence::Confirmed,
+        );
+
+        let note = make_note_with_items(
+            "billing",
+            Confidence::Confirmed,
+            vec![deprecated_item, active_item],
+        );
+        let summary = compact_summary(&note, "billing", "src/billing/main.ts");
+
+        assert!(!summary.contains("Old exception"));
+        assert!(summary.contains("Active decision"));
+    }
+
+    #[test]
+    fn context_fallback_when_no_memory_items() {
+        let note = make_note(
+            "billing",
+            Confidence::Confirmed,
+            "## Key behaviors\n- Generates invoices\n## Business rules\n- No dedup\n",
+        );
+        let summary = compact_summary(&note, "billing", "src/billing/main.ts");
+
+        // Fallback should show markdown sections, not "Memory:" header
+        assert!(!summary.contains("Memory:"));
+        assert!(summary.contains("Key behaviors:"));
+        assert!(summary.contains("Business rules:"));
+    }
+
+    // ─── Prioritization unit tests ───
+
+    #[test]
+    fn prioritize_respects_type_order() {
+        let items = vec![
+            make_item(
+                "1",
+                MemoryItemType::BusinessRule,
+                "Rule",
+                Confidence::Confirmed,
+            ),
+            make_item("2", MemoryItemType::Exception, "Exc", Confidence::Confirmed),
+            make_item("3", MemoryItemType::Decision, "Dec", Confidence::Confirmed),
+        ];
+
+        let result = prioritize_memory_items(&items, "", 3);
+        assert_eq!(result[0].type_, MemoryItemType::Exception);
+        assert_eq!(result[1].type_, MemoryItemType::Decision);
+        assert_eq!(result[2].type_, MemoryItemType::BusinessRule);
+    }
+
+    #[test]
+    fn prioritize_filters_deprecated() {
+        let mut dep = make_item("1", MemoryItemType::Exception, "Old", Confidence::Confirmed);
+        dep.status = MemoryItemStatus::Deprecated;
+        let active = make_item("2", MemoryItemType::Decision, "New", Confidence::Confirmed);
+
+        let items = vec![dep, active];
+        let result = prioritize_memory_items(&items, "", 3);
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].id, "2");
+    }
+
+    #[test]
+    fn prioritize_respects_max() {
+        let items: Vec<MemoryItem> = (0..10)
+            .map(|i| {
+                make_item(
+                    &format!("b-{:03}", i),
+                    MemoryItemType::BusinessRule,
+                    &format!("Rule {}", i),
+                    Confidence::Confirmed,
+                )
+            })
+            .collect();
+
+        let result = prioritize_memory_items(&items, "", 3);
+        assert_eq!(result.len(), 3);
     }
 }
