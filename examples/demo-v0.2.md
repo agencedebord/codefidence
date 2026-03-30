@@ -187,25 +187,46 @@ The developer opens `.wiki/_candidates.md` to review what was found:
 Each candidate has an ID, a type (decision / exception / business_rule), a
 description inferred from the code, and the files it was found in.
 
-### Step 3: Promote a candidate
+### Step 3: Ensure the target domain note exists
+
+Before promoting a candidate, its target domain note must already exist.
+Domain notes are typically created during `init --scan` (bootstrap) or can be
+added manually. If the `billing` domain was not created during init, the
+developer creates it now:
+
+```
+$ project-wiki add domain billing
+```
+
+```
+✓ Created .wiki/domains/billing/_overview.md
+```
+
+If the domain note is missing, `promote` will fail with:
+
+```
+Error: Target note '.wiki/domains/billing/_overview.md' not found.
+Create the domain first with `project-wiki add domain`.
+```
+
+### Step 4: Promote a candidate
 
 The developer decides `billing-002` is a critical exception that future
-contributors must know about. They promote it:
+contributors must know about. They promote it, which inserts the memory item
+into the existing domain note:
 
 ```
 $ project-wiki promote billing-002
 ```
 
 ```
-✓ Created domain note .wiki/domains/billing/_overview.md
 ✓ Promoted billing-002 to .wiki/domains/billing/_overview.md (confidence: confirmed)
   [exception] Free-tier users still get an invoice record with amount=0
               to maintain audit trail continuity
 ```
 
-The command created the `billing` domain note (since it did not exist yet) and
-added the memory item with `confirmed` confidence. The candidate is removed from
-`_candidates.md`.
+The command added the memory item to the `billing` domain note with `confirmed`
+confidence and marked the candidate as confirmed in `_candidates.md`.
 
 To promote with a different confidence level or reworded text:
 
@@ -213,10 +234,10 @@ To promote with a different confidence level or reworded text:
 $ project-wiki promote notifications-001 --confidence seen-in-code --text "All email dispatch goes through the async job queue, never sent inline"
 ```
 
-### Step 4: Verify the promoted item is exploitable
+### Step 5: Verify the promoted item is exploitable
 
-Now that the billing domain exists with a memory item, `context` surfaces it
-when a developer touches billing files:
+Now that the billing domain has a memory item, `context` surfaces it when a
+developer touches billing files:
 
 ```
 $ project-wiki context --file src/billing/invoice.rs
@@ -233,8 +254,9 @@ Related files: src/billing/invoice.rs, src/billing/subscription.rs, src/billing/
 **What this shows:** The full lifecycle from discovery to daily use:
 1. `generate-candidates` scans the codebase and surfaces undocumented patterns
 2. The developer reviews candidates and decides which ones matter
-3. `promote` turns a candidate into a confirmed memory item in the wiki
-4. `context` (and `check-diff`) immediately start surfacing that knowledge
+3. The developer ensures the target domain note exists (created during init or via `add domain`)
+4. `promote` inserts a candidate as a confirmed memory item into the existing note
+5. `context` (and `check-diff`) immediately start surfacing that knowledge
 
 This is the core feedback loop: scan -> review -> promote -> exploit. Over time,
 the wiki accumulates the decisions and exceptions that are hardest to discover
