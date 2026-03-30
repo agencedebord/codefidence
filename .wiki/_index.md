@@ -5,11 +5,23 @@
 
 ## Domains
 
+### Candidates
+- [Candidates overview](./domains/candidates/_overview.md) — `[seen-in-code]`
+
 ### Check-diff
 - [Check-diff overview](./domains/check-diff/_overview.md) — `[seen-in-code]`
 
 ### Context
 - [Context overview](./domains/context/_overview.md) — `[seen-in-code]`
+
+### Drift
+- [Drift overview](./domains/drift/_overview.md) — `[seen-in-code]`
+
+### Note
+- [Note overview](./domains/note/_overview.md) — `[seen-in-code]`
+
+### Promote
+- [Promote overview](./domains/promote/_overview.md) — `[seen-in-code]`
 
 ### Validate
 - [Validate overview](./domains/validate/_overview.md) — `[seen-in-code]`
@@ -20,8 +32,8 @@ _No decisions recorded yet._
 
 ## Health
 
-- Total notes: 3
+- Total notes: 7
 - Confirmed: 0 (0%)
-- Seen in code: 3 (100%)
+- Seen in code: 7 (100%)
 - Inferred: 0 (0%)
 - Stale (>30 days): 0
