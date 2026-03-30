@@ -1,6 +1,6 @@
 # 015 — Generation du fichier _candidates.md
 
-## Statut : a faire
+## Statut : termine
 
 ## Horizon : 60 jours — Semaine 5
 

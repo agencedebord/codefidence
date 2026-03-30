@@ -1,6 +1,6 @@
 # 004 — Validation des memory_items
 
-## Statut : a faire
+## Statut : termine
 
 ## Horizon : 30 jours — Semaine 1
 

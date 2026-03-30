@@ -1,6 +1,6 @@
 # 008 — check-diff : collecte des fichiers modifies
 
-## Statut : a faire
+## Statut : termine
 
 ## Horizon : 30 jours — Semaine 3
 

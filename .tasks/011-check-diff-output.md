@@ -1,6 +1,6 @@
 # 011 — check-diff : sortie texte et JSON
 
-## Statut : a faire
+## Statut : termine
 
 ## Horizon : 30 jours — Semaine 3
 

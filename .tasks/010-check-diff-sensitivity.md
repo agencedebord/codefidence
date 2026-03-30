@@ -1,6 +1,6 @@
 # 010 — check-diff : calcul de sensibilite
 
-## Statut : a faire
+## Statut : termine
 
 ## Horizon : 30 jours — Semaine 3
 

@@ -1,6 +1,6 @@
 # 018 — Refactor init (moins intrusif, opt-in)
 
-## Statut : a faire
+## Statut : termine
 
 ## Horizon : 60 jours — Semaine 7
 

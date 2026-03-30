@@ -1,6 +1,6 @@
 # 012 — Extend confirm pour items individuels
 
-## Statut : a faire
+## Statut : termine
 
 ## Horizon : 30 jours — Semaine 4
 

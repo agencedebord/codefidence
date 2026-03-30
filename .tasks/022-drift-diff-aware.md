@@ -1,6 +1,6 @@
 # 022 — Drift diff-aware (evolution detect-drift)
 
-## Statut : a faire
+## Statut : termine
 
 ## Horizon : 90 jours — Semaine 10
 

@@ -1,6 +1,6 @@
 # 020 — Sortie JSON stable pour context + check-diff
 
-## Statut : a faire
+## Statut : termine
 
 ## Horizon : 90 jours — Semaine 9
 

@@ -1,6 +1,6 @@
 # 023 — Strategie conflits .wiki/ en equipe
 
-## Statut : a faire
+## Statut : termine
 
 ## Horizon : 90 jours — Semaine 11
 

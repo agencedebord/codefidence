@@ -1,6 +1,6 @@
 # 013 — README repositionne
 
-## Statut : a faire
+## Statut : termine
 
 ## Horizon : 30 jours — Semaine 1 (parallele)
 

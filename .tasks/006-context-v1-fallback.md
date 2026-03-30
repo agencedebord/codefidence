@@ -1,6 +1,6 @@
 # 006 — Context v1 : fallback notes sans memory_items
 
-## Statut : a faire
+## Statut : termine (implemente avec 005)
 
 ## Horizon : 30 jours — Semaine 2
 

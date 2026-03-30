@@ -1,6 +1,6 @@
 # 021 — Integration review / CI
 
-## Statut : a faire
+## Statut : termine
 
 ## Horizon : 90 jours — Semaine 10
 

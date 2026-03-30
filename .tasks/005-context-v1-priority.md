@@ -1,6 +1,6 @@
 # 005 — Context v1 : lecture et priorisation des memory_items
 
-## Statut : a faire
+## Statut : termine
 
 ## Horizon : 30 jours — Semaine 2
 

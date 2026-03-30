@@ -1,6 +1,6 @@
 # 007 — check-diff : commande CLI
 
-## Statut : a faire
+## Statut : termine
 
 ## Horizon : 30 jours — Semaine 3
 

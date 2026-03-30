@@ -1,6 +1,6 @@
 # 009 — check-diff : resolution domaine + agregation memoire
 
-## Statut : a faire
+## Statut : termine
 
 ## Horizon : 30 jours — Semaine 3
 

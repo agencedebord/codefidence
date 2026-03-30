@@ -1,6 +1,6 @@
 # 014 — Heuristiques de generation de candidates
 
-## Statut : a faire
+## Statut : termine
 
 ## Horizon : 60 jours — Semaine 5
 
