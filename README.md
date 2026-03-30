@@ -1,6 +1,6 @@
 # project-wiki
 
-**Repo-native decisional memory for AI-assisted code changes. Prevents humans and AIs from breaking implicit rules.**
+**Structured memory items that surface context before you edit and check decisions after you diff.**
 
 [![CI](https://github.com/agencedebord/project-wiki/actions/workflows/ci.yml/badge.svg)](https://github.com/agencedebord/project-wiki/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue)](LICENSE-MIT)
@@ -14,38 +14,39 @@ Every project accumulates invisible knowledge: why deduplication is disabled, wh
 
 When an AI assistant -- or a new developer -- works on the codebase without this context, they "fix" intentional behavior. They undo decisions. They break things that looked broken but weren't.
 
-**The cost is real**: a single misunderstood business rule can cause a regression that takes days to identify, because nothing in the code says "this was on purpose."
-
-## The solution
+## What project-wiki does
 
 `project-wiki` creates a `.wiki/` directory in your repo containing structured **memory items** -- exceptions, decisions, and business rules -- linked to the files they affect.
 
-These memory items are surfaced at three critical moments:
+These memory items are surfaced at two critical moments:
 
-| Moment | Command | What it does |
+| Moment | Command | What happens |
 |--------|---------|-------------|
-| **Before editing** | `context --file src/billing/invoice.ts` | Injects relevant memory items into the AI's context window |
-| **After a diff** | `check-diff` | Surfaces exceptions and decisions that affect the modified files |
-| **Continuous** | `detect-drift --file ...` | Flags when a tracked file changes and its wiki note is stale |
+| **Before editing** | `context --file src/billing/invoice.ts` | Surfaces relevant memory items so you (or your AI) know what to preserve |
+| **After a diff** | `check-diff` | Flags exceptions and decisions that affect the modified files |
+
+Both commands integrate with Claude Code hooks so they run automatically.
 
 ## Quick start
 
 ```bash
-# Install from source
+# Install from source (Rust 1.85+)
 git clone https://github.com/agencedebord/project-wiki.git
 cd project-wiki && cargo install --path .
 
-# Initialize (scans your codebase to bootstrap domains)
+# Initialize in your project
 cd your-project
-project-wiki init
+project-wiki init --full    # scans codebase, installs hooks, patches CLAUDE.md
 
 # See what was found
 project-wiki status
 ```
 
+`init --full` does three things: scans your codebase to bootstrap domain notes, installs Claude Code hooks, and patches `.claude/CLAUDE.md` with wiki instructions. Each step is also available separately (`--scan`, `--hooks`).
+
 ## Memory items
 
-The core unit of knowledge is a **memory item** in a domain note's YAML front matter:
+The core primitive is a **memory item** in a domain note's YAML front matter:
 
 ```yaml
 ---
@@ -79,15 +80,15 @@ memory_items:
 
 Three types, ordered by danger level:
 
-| Type | Meaning | Why it matters |
-|------|---------|---------------|
-| `exception` | A deviation from the norm | Most dangerous to ignore -- an AI will "fix" it |
-| `decision` | An explicit architectural/business choice | Breaking it means undoing a deliberate tradeoff |
-| `business_rule` | A known rule the code implements | Context for understanding behavior |
+| Type | Meaning |
+|------|---------|
+| `exception` | A deviation from the norm -- most dangerous to ignore, an AI will "fix" it |
+| `decision` | An explicit architectural or business choice -- breaking it undoes a deliberate tradeoff |
+| `business_rule` | A known rule the code implements -- context for understanding behavior |
 
 ## Key commands
 
-### Before editing: `context`
+### `context` -- before editing
 
 ```bash
 $ project-wiki context --file src/billing/invoice.ts
@@ -102,9 +103,9 @@ Memory:
 Dependencies: payments, taxes
 ```
 
-Used automatically via Claude Code hooks (installed by `project-wiki init`).
+When Claude Code hooks are installed, this runs automatically before file edits via the PreToolUse hook.
 
-### After a diff: `check-diff`
+### `check-diff` -- after changes
 
 ```bash
 $ project-wiki check-diff src/billing/invoice.ts src/billing/service.ts
@@ -122,29 +123,26 @@ Priority memory
   billing:
     [exception] Le client X utilise encore l'ancien calcul [confirmed] *
     [decision] Pas de deduplication des lignes importees [verified]
-    [business_rule] La facture est emise apres synchro [seen-in-code]
 
 Suggested actions
   → Verifier si l'exception 'Le client X utilise encore l'ancien calcul' reste valide
 ```
 
-Also supports `--json` for programmatic use and `--staged` for pre-commit checks.
+With no arguments, checks unstaged git changes. Also supports `--staged`, `--json`, and `--pr-comment`.
 
-### Confirm knowledge: `confirm`
+### `confirm` -- validate knowledge
 
 ```bash
 # Confirm a whole domain note
 project-wiki confirm billing
 
-# Confirm a single memory item by ID
+# Confirm a single memory item
 project-wiki confirm billing-001
 ```
 
-Confirming an item sets its confidence to `confirmed` and updates `last_reviewed`.
-
 ## Confidence system
 
-Every note and every memory item carries a confidence level:
+Every note and memory item carries a confidence level:
 
 | Level | Trust it? |
 |-------|-----------|
@@ -154,61 +152,54 @@ Every note and every memory item carries a confidence level:
 | `inferred` | Maybe -- check before relying on it |
 | `needs-validation` | No -- verify first |
 
-**Golden rule**: if the wiki contradicts the code, the code wins. Update the wiki.
+**Rule**: if the wiki contradicts the code, the code wins. Update the wiki.
 
 ## All commands
 
-### Read
-
-```bash
-project-wiki consult [domain]    # Read notes for a domain (or --all)
-project-wiki search <term>       # Full-text search across all notes
-project-wiki status              # Wiki health: coverage, staleness, confidence
 ```
+Read
+  consult [domain]           Read notes for a domain (or --all)
+  search <term>              Full-text search across all notes
+  status                     Wiki health: coverage, staleness, confidence
 
-### Write
+Write
+  add domain <name>          Create a new domain
+  add context "<text>"       Add knowledge (auto-routed to domain)
+  add decision "<text>"      Record a business decision
+  confirm <target>           Promote confidence (domain or item ID)
+  deprecate <target>         Mark as deprecated
+  rename-domain <old> <new>  Rename + update all references
+  import <folder>            Import external markdown files
 
-```bash
-project-wiki add domain <name>           # Create a new domain
-project-wiki add context "<text>"        # Add knowledge (auto-routed to domain)
-project-wiki add decision "<text>"       # Record a business decision
-project-wiki confirm <target>            # Promote confidence (domain or item ID)
-project-wiki deprecate <target>          # Mark as deprecated
-project-wiki rename-domain <old> <new>   # Rename + update all references
-project-wiki import <folder> <domain>    # Import external markdown files
-```
+Analyze
+  context --file <path>      Surface memory items for a file
+  check-diff [files]         Check modified files against wiki memory
+  detect-drift --file <path> Flag when a tracked file's wiki note is stale
+  validate                   Check for broken links, dead refs, staleness
 
-### Analyze
+Maintain
+  rebuild                    Regenerate graph + index
+  index                      Regenerate _index.md and _index.json
+  graph                      Display the dependency graph
 
-```bash
-project-wiki check-diff [files]  # Check modified files against wiki memory
-project-wiki detect-drift --file <path>  # Detect wiki drift for a file
-project-wiki validate            # Check for broken links, dead refs, staleness
-```
+Candidates
+  generate-candidates        Scan codebase for potential memory items
+  promote <id>               Promote a candidate to confirmed memory item
+  reject <id>                Reject a candidate
 
-### Maintain
-
-```bash
-project-wiki rebuild             # Regenerate graph + index
-project-wiki index               # Regenerate _index.md and _index.json
-project-wiki graph               # Display the dependency graph
-```
-
-### Hooks
-
-```bash
-project-wiki install-hooks       # Install Claude Code hooks
-project-wiki uninstall-hooks     # Remove Claude Code hooks
+Hooks
+  install-hooks              Install Claude Code hooks
+  uninstall-hooks            Remove Claude Code hooks
 ```
 
 ## Claude Code integration
 
-`project-wiki init` automatically installs Claude Code hooks:
+`project-wiki init --full` installs two Claude Code hooks:
 
-1. **PreToolUse** (`context --hook`): before any file edit, injects relevant memory items
+1. **PreToolUse** (`context --hook`): before file edits, injects relevant memory items into the AI's context
 2. **PostToolUse** (`detect-drift --hook`): after a file write, flags potential wiki drift
 
-It also patches `.claude/CLAUDE.md` with instructions to read, respect, and update the wiki.
+It also patches `.claude/CLAUDE.md` with instructions to read and respect the wiki.
 
 ## Configuration
 
@@ -222,20 +213,22 @@ staleness_days = 30
 auto_index = true
 ```
 
-## Current state
+## Current state (v0.2.0)
 
-This project is in active development. The 30-day roadmap (memory items, context v1, check-diff, confirm items) is implemented. The scan and graph features are functional but secondary to the core memory layer.
+The core loop works: memory items are parsed, surfaced by `context`, and checked by `check-diff`. The `confirm` and `promote` commands let you curate knowledge over time.
 
-Supports **JavaScript/TypeScript**, **Python**, **Rust**, and **Go** project structures for domain detection.
+The codebase scan detects project structure for TypeScript/JavaScript, Python, Rust, Go, Ruby, Java, and PHP. TypeScript is the most tested target. The tool itself is language-agnostic -- memory items are linked to file paths, not to language-specific constructs.
+
+CI integration (`check-diff --pr-comment`) exists but is minimal: it outputs markdown suitable for a PR comment. There is no GitHub Action published yet.
+
+This is pre-1.0 software in active development.
 
 ## Installation
 
 ```bash
-# From source
 git clone https://github.com/agencedebord/project-wiki.git
 cd project-wiki
-cargo build --release
-# Binary: target/release/project-wiki
+cargo install --path .
 ```
 
 Requires Rust 1.85.0+.
