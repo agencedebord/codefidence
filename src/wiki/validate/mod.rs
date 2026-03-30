@@ -1,6 +1,7 @@
 mod domains;
 mod links;
 mod memory_items;
+mod migration_status;
 mod notes;
 
 #[cfg(test)]
@@ -18,6 +19,7 @@ use links::{
     check_deprecated_references, check_orphan_notes,
 };
 use memory_items::check_memory_items;
+use migration_status::check_migration_status;
 use notes::{check_confidence_ratio, check_staleness};
 
 pub fn run(strict: bool) -> Result<()> {
@@ -201,10 +203,37 @@ pub fn run(strict: bool) -> Result<()> {
         warnings += mi_warnings.len();
     }
 
+    // ─── 11. Migration status ───
+    ui::header("Migration status");
+    let migration = check_migration_status(&notes);
+    // info_warnings tracks warnings that are purely informational
+    // and should NOT be promoted to errors in strict mode.
+    let mut info_warnings: usize = 0;
+    if migration.total == 0 {
+        ui::resolved("No notes to check.");
+        passes += 1;
+    } else if migration.without_items == 0 {
+        ui::resolved(&format!(
+            "All {} note(s) have memory_items.",
+            migration.total
+        ));
+        passes += 1;
+    } else {
+        let list = migration.legacy_paths.join(", ");
+        ui::warn(&format!(
+            "{} note(s) without memory_items: {}",
+            migration.without_items, list
+        ));
+        info_warnings += 1;
+    }
+
     // In strict mode, warnings are promoted to errors
+    // (but info_warnings are excluded — they stay as warnings)
     if strict {
         errors += warnings;
-        warnings = 0;
+        warnings = info_warnings;
+    } else {
+        warnings += info_warnings;
     }
 
     // ─── Summary ───

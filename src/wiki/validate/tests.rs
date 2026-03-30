@@ -3,6 +3,7 @@ use super::links::{
     check_broken_links, check_dead_references, check_deprecated_references,
 };
 use super::memory_items::check_memory_items;
+use super::migration_status::check_migration_status;
 use super::notes::{check_confidence_ratio, check_staleness};
 use crate::wiki::note::{
     Confidence, MemoryItem, MemoryItemSource, MemoryItemStatus, MemoryItemType, WikiNote,
@@ -633,4 +634,83 @@ fn validate_mixed_notes_with_and_without_items() {
     let (errors, warnings) = check_memory_items(&notes);
     assert!(errors.is_empty());
     assert!(warnings.is_empty());
+}
+
+// ─── check_migration_status ───
+
+#[test]
+fn migration_status_all_notes_have_memory_items() {
+    let notes = vec![
+        make_note_with_items(
+            "billing.md",
+            Confidence::Confirmed,
+            vec![make_item(
+                "billing-001",
+                MemoryItemType::Decision,
+                Confidence::Confirmed,
+            )],
+        ),
+        make_note_with_items(
+            "auth.md",
+            Confidence::Confirmed,
+            vec![make_item(
+                "auth-001",
+                MemoryItemType::BusinessRule,
+                Confidence::Verified,
+            )],
+        ),
+    ];
+
+    let status = check_migration_status(&notes);
+    assert_eq!(status.total, 2);
+    assert_eq!(status.without_items, 0);
+    assert!(status.legacy_paths.is_empty());
+}
+
+#[test]
+fn migration_status_mixed_notes() {
+    let notes = vec![
+        make_note("legacy.md", Confidence::Confirmed, None, vec![], false),
+        make_note_with_items(
+            "migrated.md",
+            Confidence::Confirmed,
+            vec![make_item(
+                "migrated-001",
+                MemoryItemType::Decision,
+                Confidence::Confirmed,
+            )],
+        ),
+        make_note("also-legacy.md", Confidence::Inferred, None, vec![], false),
+    ];
+
+    let status = check_migration_status(&notes);
+    assert_eq!(status.total, 3);
+    assert_eq!(status.without_items, 2);
+    assert_eq!(status.legacy_paths.len(), 2);
+    assert!(status.legacy_paths.contains(&"legacy.md".to_string()));
+    assert!(status.legacy_paths.contains(&"also-legacy.md".to_string()));
+}
+
+#[test]
+fn migration_status_no_notes_have_memory_items() {
+    let notes = vec![
+        make_note("a.md", Confidence::Confirmed, None, vec![], false),
+        make_note("b.md", Confidence::Inferred, None, vec![], false),
+        make_note("c.md", Confidence::Verified, None, vec![], false),
+    ];
+
+    let status = check_migration_status(&notes);
+    assert_eq!(status.total, 3);
+    assert_eq!(status.without_items, 3);
+    assert_eq!(status.legacy_paths.len(), 3);
+}
+
+#[test]
+fn migration_status_empty_notes() {
+    let notes: Vec<WikiNote> = Vec::new();
+
+    let status = check_migration_status(&notes);
+    assert_eq!(status.total, 0);
+    assert_eq!(status.without_items, 0);
+    assert!(status.legacy_paths.is_empty());
 }
