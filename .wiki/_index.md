@@ -1,9 +1,12 @@
 # Project Wiki
 
 > Auto-generated. Do not edit manually.
-> Last updated: 2026-03-30
+> Last updated: 2026-03-31
 
 ## Domains
+
+### Add
+- [Add overview](./domains/add/_overview.md) — `[seen-in-code]`
 
 ### Candidates
 - [Candidates overview](./domains/candidates/_overview.md) — `[seen-in-code]`
@@ -17,11 +20,17 @@
 ### Drift
 - [Drift overview](./domains/drift/_overview.md) — `[seen-in-code]`
 
+### Manage
+- [Manage overview](./domains/manage/_overview.md) — `[seen-in-code]`
+
 ### Note
 - [Note overview](./domains/note/_overview.md) — `[seen-in-code]`
 
 ### Promote
 - [Promote overview](./domains/promote/_overview.md) — `[seen-in-code]`
+
+### Scan
+- [Scan overview](./domains/scan/_overview.md) — `[seen-in-code]`
 
 ### Validate
 - [Validate overview](./domains/validate/_overview.md) — `[seen-in-code]`
@@ -32,8 +41,8 @@ _No decisions recorded yet._
 
 ## Health
 
-- Total notes: 7
+- Total notes: 10
 - Confirmed: 0 (0%)
-- Seen in code: 7 (100%)
+- Seen in code: 10 (100%)
 - Inferred: 0 (0%)
 - Stale (>30 days): 0
