@@ -1,6 +1,6 @@
-# project-wiki v0.2 Demo Scenarios
+# codefidence v0.2 Demo Scenarios
 
-> Captured on 2026-03-30 against the project-wiki codebase itself.
+> Captured on 2026-03-30 against the codefidence codebase itself.
 > The wiki has 10 domain notes with 33 memory items total.
 
 ---
@@ -18,7 +18,7 @@ $ cargo run -- context --file src/wiki/check_diff/resolve.rs
 **Output:**
 
 ```
-[project-wiki] Domain: check-diff (confidence: seen-in-code, updated: 2026-03-30)
+[codefidence] Domain: check-diff (confidence: seen-in-code, updated: 2026-03-30)
 Memory:
   [exception] Deprecated memory items are filtered out before prioritization and never appear in output [seen-in-code]
   [decision] Maximum 3 domains shown in output, sorted by file count then memory_items count [seen-in-code]
@@ -51,7 +51,7 @@ $ cargo run -- check-diff
 **Output:**
 
 ```
-[project-wiki] Diff check
+[codefidence] Diff check
 
 14 file(s) analyzed
 2 domain(s) affected
@@ -112,10 +112,10 @@ future documentation.
 
 > **Note:** The outputs below are representative of what each command produces on
 > a partially-documented codebase. They were not captured live because
-> project-wiki's own wiki is already fully documented, leaving no candidates to
+> codefidence's own wiki is already fully documented, leaving no candidates to
 > discover. The format, structure, and behavior shown are accurate.
 
-**Scenario:** A team has just installed project-wiki on an existing SaaS
+**Scenario:** A team has just installed codefidence on an existing SaaS
 codebase. The wiki has a single `auth` domain documented, but the codebase also
 contains billing, notifications, and onboarding logic. The developer runs
 `generate-candidates` to discover what else should be documented, then promotes
@@ -124,7 +124,7 @@ the best findings to confirmed memory items.
 ### Step 1: Generate candidates
 
 ```
-$ project-wiki generate-candidates
+$ codefidence generate-candidates
 ```
 
 ```
@@ -195,7 +195,7 @@ added manually. If the `billing` domain was not created during init, the
 developer creates it now:
 
 ```
-$ project-wiki add domain billing
+$ codefidence add domain billing
 ```
 
 ```
@@ -206,7 +206,7 @@ If the domain note is missing, `promote` will fail with:
 
 ```
 Error: Target note '.wiki/domains/billing/_overview.md' not found.
-Create the domain first with `project-wiki add domain`.
+Create the domain first with `codefidence add domain`.
 ```
 
 ### Step 4: Promote a candidate
@@ -216,7 +216,7 @@ contributors must know about. They promote it, which inserts the memory item
 into the existing domain note:
 
 ```
-$ project-wiki promote billing-002
+$ codefidence promote billing-002
 ```
 
 ```
@@ -231,7 +231,7 @@ confidence and marked the candidate as confirmed in `_candidates.md`.
 To promote with a different confidence level or reworded text:
 
 ```
-$ project-wiki promote notifications-001 --confidence seen-in-code --text "All email dispatch goes through the async job queue, never sent inline"
+$ codefidence promote notifications-001 --confidence seen-in-code --text "All email dispatch goes through the async job queue, never sent inline"
 ```
 
 ### Step 5: Verify the promoted item is exploitable
@@ -240,11 +240,11 @@ Now that the billing domain has a memory item, `context` surfaces it when a
 developer touches billing files:
 
 ```
-$ project-wiki context --file src/billing/invoice.rs
+$ codefidence context --file src/billing/invoice.rs
 ```
 
 ```
-[project-wiki] Domain: billing (confidence: confirmed, updated: 2026-03-30)
+[codefidence] Domain: billing (confidence: confirmed, updated: 2026-03-30)
 Memory:
   [exception] Free-tier users still get an invoice record with amount=0
               to maintain audit trail continuity [confirmed]
@@ -276,7 +276,7 @@ $ cargo run -- validate
 **Output:**
 
 ```
-project-wiki v0.2.0
+codefidence v0.2.0
 
 Validating wiki
 

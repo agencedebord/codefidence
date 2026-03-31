@@ -37,7 +37,7 @@ pub fn promote(
 
     let candidates_path = wiki_dir.join("_candidates.md");
     if !candidates_path.exists() {
-        bail!("No _candidates.md found. Run `project-wiki generate-candidates` first.");
+        bail!("No _candidates.md found. Run `codefidence generate-candidates` first.");
     }
 
     let mut candidates = parse_candidates_file(&candidates_path)?;
@@ -68,7 +68,7 @@ pub fn promote(
 
     if !target_path.exists() {
         bail!(
-            "Target note '{}' not found. Create the domain first with `project-wiki add domain`.",
+            "Target note '{}' not found. Create the domain first with `codefidence add domain`.",
             candidate.target
         );
     }
@@ -186,7 +186,7 @@ pub fn find_next_candidate(wiki_dir: &Path) -> Result<(String, String)> {
 
     let candidates_path = wiki_dir.join("_candidates.md");
     if !candidates_path.exists() {
-        bail!("No _candidates.md found. Run `project-wiki generate-candidates` first.");
+        bail!("No _candidates.md found. Run `codefidence generate-candidates` first.");
     }
 
     let candidates = parse_candidates_file(&candidates_path)?;
@@ -196,7 +196,7 @@ pub fn find_next_candidate(wiki_dir: &Path) -> Result<(String, String)> {
         .collect();
 
     if pending.is_empty() {
-        bail!("No pending candidates. Run: project-wiki generate-candidates");
+        bail!("No pending candidates. Run: codefidence generate-candidates");
     }
 
     // Sort by type priority: exception (0) > decision (1) > business_rule (2)
@@ -222,10 +222,10 @@ fn print_next_steps(wiki_dir: &Path) {
     let remaining = count_pending(wiki_dir);
     if remaining > 0 {
         ui::info(&format!(
-            "{remaining} more pending candidate(s). Run: project-wiki promote --next"
+            "{remaining} more pending candidate(s). Run: codefidence promote --next"
         ));
     } else {
-        ui::info("All candidates processed. Run: project-wiki validate");
+        ui::info("All candidates processed. Run: codefidence validate");
     }
 }
 
@@ -1124,7 +1124,7 @@ memory_items:
         assert!(result.is_err());
         let msg = result.unwrap_err().to_string();
         assert!(
-            msg.contains("project-wiki generate-candidates"),
+            msg.contains("codefidence generate-candidates"),
             "Error should suggest generate-candidates, got: {msg}"
         );
     }

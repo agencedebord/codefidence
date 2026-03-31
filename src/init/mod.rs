@@ -69,7 +69,7 @@ pub async fn run(
         {
             let _ = notion_url;
             anyhow::bail!(
-                "Notion support is not enabled. Rebuild with: cargo install project-wiki --features notion"
+                "Notion support is not enabled. Rebuild with: cargo install codefidence --features notion"
             );
         }
     }
@@ -83,7 +83,7 @@ fn run_scan() -> Result<()> {
 
     if result.domains.is_empty() {
         ui::info(
-            "No domains detected. You can add them manually with `project-wiki add domain <name>`.",
+            "No domains detected. You can add them manually with `codefidence add domain <name>`.",
         );
         return Ok(());
     }

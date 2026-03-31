@@ -5,11 +5,11 @@ const path = require("path");
 const fs = require("fs");
 
 const PLATFORMS = {
-  "darwin-arm64": "@project-wiki/darwin-arm64",
-  "darwin-x64": "@project-wiki/darwin-x64",
-  "linux-x64": "@project-wiki/linux-x64",
-  "linux-arm64": "@project-wiki/linux-arm64",
-  "win32-x64": "@project-wiki/win32-x64",
+  "darwin-arm64": "@codefidence/darwin-arm64",
+  "darwin-x64": "@codefidence/darwin-x64",
+  "linux-x64": "@codefidence/linux-x64",
+  "linux-arm64": "@codefidence/linux-arm64",
+  "win32-x64": "@codefidence/win32-x64",
 };
 
 function getBinaryPath() {
@@ -40,7 +40,7 @@ function getBinaryPath() {
   }
 
   const binaryName =
-    platform === "win32" ? "project-wiki.exe" : "project-wiki";
+    platform === "win32" ? "codefidence.exe" : "codefidence";
 
   try {
     const pkgPath = require.resolve(`${pkg}/package.json`);
@@ -53,10 +53,10 @@ function getBinaryPath() {
     return binPath;
   } catch (e) {
     throw new Error(
-      `Could not find the project-wiki binary for ${platform}-${normalizedArch}. ` +
+      `Could not find the codefidence binary for ${platform}-${normalizedArch}. ` +
         `Make sure ${pkg} is installed.\n\n` +
         `If you're using npm, try reinstalling with:\n` +
-        `  npm install @project-wiki/cli\n\n` +
+        `  npm install @codefidence/cli\n\n` +
         `Original error: ${e.message}`
     );
   }

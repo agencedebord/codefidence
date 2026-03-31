@@ -74,7 +74,7 @@ pub fn run(file: &str, json: bool) -> Result<()> {
             Ok(())
         }
         None => {
-            eprintln!("[project-wiki] No wiki context found for: {}", file);
+            eprintln!("[codefidence] No wiki context found for: {}", file);
             Ok(())
         }
     }

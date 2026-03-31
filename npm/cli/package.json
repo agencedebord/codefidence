@@ -1,21 +1,21 @@
 {
-  "name": "@project-wiki/cli",
+  "name": "@codefidence/cli",
   "version": "0.1.0",
   "description": "Auto-managed project knowledge wiki for AI-assisted development",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/agencedebord/project-wiki"
+    "url": "https://github.com/agencedebord/codefidence"
   },
   "bin": {
-    "project-wiki": "bin/project-wiki"
+    "codefidence": "bin/codefidence"
   },
   "files": ["bin"],
   "optionalDependencies": {
-    "@project-wiki/darwin-arm64": "0.1.0",
-    "@project-wiki/darwin-x64": "0.1.0",
-    "@project-wiki/linux-x64": "0.1.0",
-    "@project-wiki/linux-arm64": "0.1.0",
-    "@project-wiki/win32-x64": "0.1.0"
+    "@codefidence/darwin-arm64": "0.1.0",
+    "@codefidence/darwin-x64": "0.1.0",
+    "@codefidence/linux-x64": "0.1.0",
+    "@codefidence/linux-arm64": "0.1.0",
+    "@codefidence/win32-x64": "0.1.0"
   }
 }

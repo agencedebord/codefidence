@@ -62,7 +62,7 @@ fn compact_summary_includes_domain_info() {
     );
     let summary = compact_summary(&note, "billing", "src/billing/main.ts");
 
-    assert!(summary.contains("[project-wiki] Domain: billing"));
+    assert!(summary.contains("[codefidence] Domain: billing"));
     assert!(summary.contains("confirmed"));
     assert!(summary.contains("2026-03-28"));
 }
@@ -496,7 +496,7 @@ fn snapshot_v1_full_context_output() {
     let summary = compact_summary(&note, "billing", "src/billing/main.ts");
 
     let expected = "\
-[project-wiki] Domain: billing (confidence: confirmed, updated: 2026-03-28)
+[codefidence] Domain: billing (confidence: confirmed, updated: 2026-03-28)
 Memory:
   [exception] Client X uses legacy pricing engine [confirmed]
   [decision] No dedup on CSV import [confirmed]
@@ -520,7 +520,7 @@ fn snapshot_fallback_format_without_memory_items() {
     let summary = compact_summary(&note, "auth", "src/auth/main.ts");
 
     let expected = "\
-[project-wiki] Domain: auth (confidence: confirmed, updated: 2026-03-28)
+[codefidence] Domain: auth (confidence: confirmed, updated: 2026-03-28)
 Key behaviors: JWT tokens expire after 1h — Refresh tokens are rotated
 Business rules: Max 5 failed login attempts
 Dependencies: user-service, redis
@@ -578,9 +578,11 @@ fn snapshot_truncation_preserves_marker() {
         &summary[summary.len().saturating_sub(30)..]
     );
     // The header line must still be intact
-    assert!(summary.starts_with(
-        "[project-wiki] Domain: billing (confidence: confirmed, updated: 2026-03-28)"
-    ));
+    assert!(
+        summary.starts_with(
+            "[codefidence] Domain: billing (confidence: confirmed, updated: 2026-03-28)"
+        )
+    );
 }
 
 // ── Schema version tests (task 028) ──

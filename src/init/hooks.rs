@@ -6,12 +6,12 @@ use serde_json::{Value, json};
 
 use crate::ui;
 
-const MANAGED_BY: &str = "project-wiki";
+const MANAGED_BY: &str = "codefidence";
 
 /// Install Claude Code hooks for automatic wiki integration.
 ///
 /// Creates or updates `.claude/settings.json` with PreToolUse and PostToolUse
-/// hooks that point to `project-wiki context --hook` and `project-wiki detect-drift --hook`.
+/// hooks that point to `codefidence context --hook` and `codefidence detect-drift --hook`.
 pub fn install(project_root: &Path) -> Result<()> {
     let claude_dir = project_root.join(".claude");
     fs::create_dir_all(&claude_dir).context("Failed to create .claude directory")?;
@@ -37,7 +37,7 @@ pub fn install(project_root: &Path) -> Result<()> {
         &mut settings,
         "PreToolUse",
         "Edit|Write",
-        "project-wiki context --hook",
+        "codefidence context --hook",
     );
 
     // Install PostToolUse hook
@@ -45,7 +45,7 @@ pub fn install(project_root: &Path) -> Result<()> {
         &mut settings,
         "PostToolUse",
         "Edit|Write",
-        "project-wiki detect-drift --hook",
+        "codefidence detect-drift --hook",
     );
 
     // Write back
@@ -53,13 +53,13 @@ pub fn install(project_root: &Path) -> Result<()> {
     fs::write(&settings_path, json).context("Failed to write .claude/settings.json")?;
 
     ui::success("Claude Code hooks installed.");
-    ui::info("PreToolUse → project-wiki context --hook");
-    ui::info("PostToolUse → project-wiki detect-drift --hook");
+    ui::info("PreToolUse → codefidence context --hook");
+    ui::info("PostToolUse → codefidence detect-drift --hook");
 
     Ok(())
 }
 
-/// Remove project-wiki hooks from `.claude/settings.json`.
+/// Remove codefidence hooks from `.claude/settings.json`.
 pub fn uninstall(project_root: &Path) -> Result<()> {
     let settings_path = project_root.join(".claude/settings.json");
 
@@ -129,7 +129,7 @@ fn upsert_hook(settings: &mut Value, event_type: &str, matcher: &str, command: &
     }
 }
 
-/// Check if a hook entry is managed by project-wiki.
+/// Check if a hook entry is managed by codefidence.
 fn is_managed_entry(entry: &Value) -> bool {
     if let Some(hooks) = entry.get("hooks").and_then(|h| h.as_array()) {
         return hooks
@@ -162,15 +162,15 @@ mod tests {
         assert!(pre.is_array());
         assert_eq!(pre.as_array().unwrap().len(), 1);
         assert_eq!(pre[0]["matcher"], "Edit|Write");
-        assert_eq!(pre[0]["hooks"][0]["command"], "project-wiki context --hook");
-        assert_eq!(pre[0]["hooks"][0]["_managed_by"], "project-wiki");
+        assert_eq!(pre[0]["hooks"][0]["command"], "codefidence context --hook");
+        assert_eq!(pre[0]["hooks"][0]["_managed_by"], "codefidence");
 
         // Check PostToolUse
         let post = &settings["hooks"]["PostToolUse"];
         assert!(post.is_array());
         assert_eq!(
             post[0]["hooks"][0]["command"],
-            "project-wiki detect-drift --hook"
+            "codefidence detect-drift --hook"
         );
     }
 
@@ -224,7 +224,7 @@ mod tests {
 
         // Existing custom hook should be preserved
         let pre = settings["hooks"]["PreToolUse"].as_array().unwrap();
-        assert_eq!(pre.len(), 2); // custom + project-wiki
+        assert_eq!(pre.len(), 2); // custom + codefidence
         assert!(
             pre.iter()
                 .any(|e| e["hooks"][0]["command"] == "custom-safety-check")
@@ -238,12 +238,12 @@ mod tests {
         let claude_dir = dir.path().join(".claude");
         fs::create_dir_all(&claude_dir).unwrap();
 
-        // Install a custom hook + project-wiki hooks
+        // Install a custom hook + codefidence hooks
         let existing = json!({
             "hooks": {
                 "PreToolUse": [
                     { "matcher": "Bash", "hooks": [{ "type": "command", "command": "custom-check" }] },
-                    { "matcher": "Edit|Write", "hooks": [{ "type": "command", "command": "project-wiki context --hook", "_managed_by": "project-wiki" }] }
+                    { "matcher": "Edit|Write", "hooks": [{ "type": "command", "command": "codefidence context --hook", "_managed_by": "codefidence" }] }
                 ]
             }
         });

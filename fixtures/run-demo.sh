@@ -1,21 +1,21 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Reproducible demo for project-wiki v0.2
+# Reproducible demo for codefidence v0.2
 # Replays the full product loop on the fixture project.
 #
 # Usage:
-#   WIKI_BIN=/path/to/project-wiki bash fixtures/run-demo.sh
+#   WIKI_BIN=/path/to/codefidence bash fixtures/run-demo.sh
 #
 # Or build first:
 #   cargo build --release
-#   WIKI_BIN=./target/release/project-wiki bash fixtures/run-demo.sh
+#   WIKI_BIN=./target/release/codefidence bash fixtures/run-demo.sh
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 FIXTURE="$SCRIPT_DIR/demo-project"
-WIKI_BIN="${WIKI_BIN:-project-wiki}"
+WIKI_BIN="${WIKI_BIN:-codefidence}"
 
-echo "=== project-wiki v0.2 — Reproducible Demo ==="
+echo "=== codefidence v0.2 — Reproducible Demo ==="
 echo ""
 echo "Fixture: $FIXTURE"
 echo "Binary:  $WIKI_BIN"

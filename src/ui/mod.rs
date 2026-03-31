@@ -94,7 +94,7 @@ const ROSE: (u8, u8, u8) = (224, 102, 153);
 
 /// Print the app header with gradient.
 pub fn app_header(version: &str) {
-    let title = format!("project-wiki v{}", version);
+    let title = format!("codefidence v{}", version);
     eprintln!(
         "{} {}",
         style(MARKER_START).cyan(),

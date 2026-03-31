@@ -28,7 +28,7 @@ fn compact_summary_v1(note: &WikiNote, domain: &str, file_path: &str) -> String 
     let mut parts = Vec::new();
 
     parts.push(format!(
-        "[project-wiki] Domain: {} (confidence: {}, updated: {})",
+        "[codefidence] Domain: {} (confidence: {}, updated: {})",
         domain, note.confidence, updated
     ));
 
@@ -114,7 +114,7 @@ fn compact_summary_fallback(note: &WikiNote, domain: &str) -> String {
     let mut parts = Vec::new();
 
     parts.push(format!(
-        "[project-wiki] Domain: {} (confidence: {}, updated: {})",
+        "[codefidence] Domain: {} (confidence: {}, updated: {})",
         domain, note.confidence, updated
     ));
 

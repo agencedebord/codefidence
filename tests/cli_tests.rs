@@ -5,7 +5,7 @@ use tempfile::TempDir;
 
 /// Helper to get a Command pointing at our binary, with cwd set to the given dir.
 fn cmd_in(dir: &TempDir) -> Command {
-    let mut cmd = Command::cargo_bin("project-wiki").unwrap();
+    let mut cmd = Command::cargo_bin("codefidence").unwrap();
     cmd.current_dir(dir.path());
     cmd
 }
@@ -77,8 +77,8 @@ fn init_full_creates_github_workflow() {
 
     let content = fs::read_to_string(&workflow_path).unwrap();
     assert!(content.contains("Wiki Memory Check"));
-    assert!(content.contains("project-wiki check-diff --pr-comment"));
-    assert!(content.contains("project-wiki-memory-check"));
+    assert!(content.contains("codefidence check-diff --pr-comment"));
+    assert!(content.contains("codefidence-memory-check"));
 }
 
 #[test]
@@ -94,13 +94,13 @@ fn init_minimal_does_not_create_github_workflow() {
 }
 
 #[test]
-fn init_full_creates_claude_md_with_project_wiki_section() {
+fn init_full_creates_claude_md_with_codefidence_section() {
     let dir = TempDir::new().unwrap();
 
     cmd_in(&dir).arg("init").arg("--full").assert().success();
 
     let claude_md = fs::read_to_string(dir.path().join("CLAUDE.md")).unwrap();
-    assert!(claude_md.contains("Project Wiki"));
+    assert!(claude_md.contains("Codefidence"));
 }
 
 #[test]
@@ -227,7 +227,7 @@ fn rebuild_regenerates_index() {
     // Verify _index.md was regenerated with proper content
     let index = fs::read_to_string(dir.path().join(".wiki/_index.md")).unwrap();
     assert!(
-        index.contains("Project Wiki"),
+        index.contains("Codefidence"),
         "_index.md should be regenerated"
     );
     assert!(
@@ -377,7 +377,7 @@ fn index_regenerates_on_initialized_wiki() {
     cmd_in(&dir).arg("index").assert().success();
 
     let index = fs::read_to_string(dir.path().join(".wiki/_index.md")).unwrap();
-    assert!(index.contains("Project Wiki"));
+    assert!(index.contains("Codefidence"));
 }
 
 // ─── search ───

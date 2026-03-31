@@ -5,7 +5,7 @@ use super::{CheckDiffResult, DomainWarning, Sensitivity};
 pub(super) fn format_text(result: &CheckDiffResult) -> String {
     let mut lines = Vec::new();
 
-    lines.push("[project-wiki] Diff check".to_string());
+    lines.push("[codefidence] Diff check".to_string());
     lines.push(String::new());
 
     let domain_count = result.domains.len();
@@ -119,8 +119,8 @@ pub fn format_pr_comment(result: &CheckDiffResult) -> Option<String> {
     let mut lines = Vec::new();
 
     // Header with unique marker for idempotent updates
-    lines.push("## \u{1f9e0} project-wiki \u{2014} Memory Check".to_string());
-    lines.push("<!-- project-wiki-memory-check -->".to_string());
+    lines.push("## \u{1f9e0} codefidence \u{2014} Memory Check".to_string());
+    lines.push("<!-- codefidence-memory-check -->".to_string());
     lines.push(String::new());
     lines.push(format!("**Sensitivity: {}**", result.sensitivity));
 

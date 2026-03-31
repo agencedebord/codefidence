@@ -73,7 +73,7 @@ mod tests {
         let dir = TempDir::new().unwrap();
         let config_path = dir.path().join("config.toml");
         let mut f = fs::File::create(&config_path).unwrap();
-        writeln!(f, "# project-wiki configuration").unwrap();
+        writeln!(f, "# codefidence configuration").unwrap();
         writeln!(f, "staleness_days = 60").unwrap();
         writeln!(f, "auto_index = false").unwrap();
 

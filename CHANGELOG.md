@@ -57,5 +57,5 @@ Consolidation release: stable memory core, real migration, reproducible demo.
 - Property-based tests with proptest
 - Dual license: MIT OR Apache-2.0
 
-[0.2.0]: https://github.com/agencedebord/project-wiki/releases/tag/v0.2.0
-[0.1.0]: https://github.com/agencedebord/project-wiki/releases/tag/v0.1.0
+[0.2.0]: https://github.com/agencedebord/codefidence/releases/tag/v0.2.0
+[0.1.0]: https://github.com/agencedebord/codefidence/releases/tag/v0.1.0

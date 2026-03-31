@@ -169,8 +169,8 @@ pub fn generate_index(domains: &[DomainInfo], date: &str) -> String {
     };
 
     format!(
-        "# Project Wiki\n\n\
-         > Auto-generated knowledge base. Managed by [project-wiki](https://github.com/agencedebord/project-wiki).\n\n\
+        "# Codefidence\n\n\
+         > Auto-generated knowledge base. Managed by [codefidence](https://github.com/agencedebord/codefidence).\n\n\
          ## Domains\n\n\
          {}\n\n\
          ## Recent decisions\n\n\

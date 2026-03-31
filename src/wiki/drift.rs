@@ -70,7 +70,7 @@ pub fn run(file: &str) -> Result<()> {
     let warnings = detect(file, &wiki_dir, project_root)?;
 
     if warnings.is_empty() {
-        eprintln!("[project-wiki] No drift detected for: {}", file);
+        eprintln!("[codefidence] No drift detected for: {}", file);
     } else {
         eprintln!("{}", format_warnings(&warnings));
     }
@@ -384,14 +384,14 @@ fn check_items_against_diff(
 
 /// Format warnings into a human-readable string.
 pub fn format_warnings(warnings: &[DriftWarning]) -> String {
-    let mut lines = vec!["[project-wiki] Wiki drift detected:".to_string()];
+    let mut lines = vec!["[codefidence] Wiki drift detected:".to_string()];
 
     for w in warnings {
         lines.push(format!("  - {}", w.message));
     }
 
     if let Some(first) = warnings.first() {
-        lines.push(format!("  Run: project-wiki consult {}", first.domain));
+        lines.push(format!("  Run: codefidence consult {}", first.domain));
     }
 
     lines.join("\n")
@@ -535,7 +535,7 @@ mod tests {
         let output = format_warnings(&warnings);
         assert!(output.contains("Note is stale"));
         assert!(output.contains("Low confidence"));
-        assert!(output.contains("project-wiki consult billing"));
+        assert!(output.contains("codefidence consult billing"));
     }
 
     // ── Diff-aware tests (task 022) ──

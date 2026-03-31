@@ -1,4 +1,4 @@
-# Project Wiki
+# Codefidence
 
 > Auto-generated. Do not edit manually.
 > Last updated: 2026-03-31

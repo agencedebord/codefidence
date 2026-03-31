@@ -14,11 +14,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install project-wiki
-        run: cargo install project-wiki
+      - name: Install codefidence
+        run: cargo install codefidence
 
       - name: Validate wiki
-        run: project-wiki validate
+        run: codefidence validate
 
       - name: Check wiki status
-        run: project-wiki status
+        run: codefidence status

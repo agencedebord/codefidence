@@ -99,7 +99,7 @@ pub fn run() -> Result<()> {
     // ─── Build output ───
     let mut output = String::new();
 
-    output.push_str("# Project Wiki\n\n");
+    output.push_str("# Codefidence\n\n");
     output.push_str("> Auto-generated. Do not edit manually.\n");
     output.push_str(&format!("> Last updated: {}\n", date));
 

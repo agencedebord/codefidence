@@ -1,8 +1,8 @@
-# project-wiki
+# codefidence
 
 **Structured memory items that surface context before you edit and check decisions after you diff.**
 
-[![CI](https://github.com/agencedebord/project-wiki/actions/workflows/ci.yml/badge.svg)](https://github.com/agencedebord/project-wiki/actions/workflows/ci.yml)
+[![CI](https://github.com/agencedebord/codefidence/actions/workflows/ci.yml/badge.svg)](https://github.com/agencedebord/codefidence/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue)](LICENSE-MIT)
 [![Rust](https://img.shields.io/badge/rust-1.85%2B-blue)](https://www.rust-lang.org)
 
@@ -14,9 +14,9 @@ Every project accumulates invisible knowledge: why deduplication is disabled, wh
 
 When an AI assistant -- or a new developer -- works on the codebase without this context, they "fix" intentional behavior. They undo decisions. They break things that looked broken but weren't.
 
-## What project-wiki does
+## What codefidence does
 
-`project-wiki` creates a `.wiki/` directory in your repo containing structured **memory items** -- exceptions, decisions, and business rules -- linked to the files they affect.
+`codefidence` creates a `.wiki/` directory in your repo containing structured **memory items** -- exceptions, decisions, and business rules -- linked to the files they affect.
 
 These memory items are surfaced at two critical moments:
 
@@ -31,15 +31,15 @@ These memory items are surfaced at two critical moments:
 
 ```bash
 # Install from source (Rust 1.85+)
-git clone https://github.com/agencedebord/project-wiki.git
-cd project-wiki && cargo install --path .
+git clone https://github.com/agencedebord/codefidence.git
+cd codefidence && cargo install --path .
 
 # Initialize in your project
 cd your-project
-project-wiki init --full    # scans codebase, installs hooks, patches CLAUDE.md
+codefidence init --full    # scans codebase, installs hooks, patches CLAUDE.md
 
 # See what was found
-project-wiki status
+codefidence status
 ```
 
 `init --full` does four things: scans your codebase to bootstrap domain notes, installs Claude Code hooks, patches `CLAUDE.md` (at project root) with wiki instructions, and installs Claude slash commands. Each step is also available separately (`--scan`, `--hooks`).
@@ -91,9 +91,9 @@ Three types, ordered by danger level:
 ### `context` -- before editing
 
 ```bash
-$ project-wiki context --file src/billing/invoice.ts
+$ codefidence context --file src/billing/invoice.ts
 
-[project-wiki] Domain: billing (confidence: verified, updated: 2026-03-28)
+[codefidence] Domain: billing (confidence: verified, updated: 2026-03-28)
 
 Memory:
   [exception] Le client X utilise encore l'ancien calcul [confirmed]
@@ -108,9 +108,9 @@ When Claude Code hooks are installed, this runs automatically before file edits 
 ### `check-diff` -- after changes
 
 ```bash
-$ project-wiki check-diff src/billing/invoice.ts src/billing/service.ts
+$ codefidence check-diff src/billing/invoice.ts src/billing/service.ts
 
-[project-wiki] Diff check
+[codefidence] Diff check
 
 2 file(s) analyzed
 1 domain(s) affected
@@ -134,10 +134,10 @@ With no arguments, checks unstaged git changes. Also supports `--staged`, `--jso
 
 ```bash
 # Confirm a whole domain note
-project-wiki confirm billing
+codefidence confirm billing
 
 # Confirm a single memory item
-project-wiki confirm billing-001
+codefidence confirm billing-001
 ```
 
 ## Confidence system
@@ -195,7 +195,7 @@ Hooks
 
 ## Claude Code integration
 
-`project-wiki init --full` installs two Claude Code hooks:
+`codefidence init --full` installs two Claude Code hooks:
 
 1. **PreToolUse** (`context --hook`): before file edits, injects relevant memory items into the AI's context
 2. **PostToolUse** (`detect-drift --hook`): after a file write, flags potential wiki drift
@@ -227,8 +227,8 @@ This is pre-1.0 software in active development.
 ## Installation
 
 ```bash
-git clone https://github.com/agencedebord/project-wiki.git
-cd project-wiki
+git clone https://github.com/agencedebord/codefidence.git
+cd codefidence
 cargo install --path .
 ```
 

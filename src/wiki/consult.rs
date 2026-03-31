@@ -12,7 +12,7 @@ pub fn run(domain: Option<&str>, all: bool) -> Result<()> {
     let wiki_dir = Path::new(".wiki");
 
     if !wiki_dir.exists() {
-        bail!("No .wiki/ found. Run `project-wiki init` first.");
+        bail!("No .wiki/ found. Run `codefidence init` first.");
     }
 
     if all {
@@ -36,7 +36,7 @@ fn show_wiki_overview(wiki_dir: &Path) -> Result<()> {
         let content = fs::read_to_string(&index_path)?;
         println!("{}", content.trim());
     } else {
-        ui::info("No _index.md found. Run `project-wiki index` to generate it.");
+        ui::info("No _index.md found. Run `codefidence index` to generate it.");
     }
 
     let graph_path = wiki_dir.join("_graph.md");
@@ -45,7 +45,7 @@ fn show_wiki_overview(wiki_dir: &Path) -> Result<()> {
         let content = fs::read_to_string(&graph_path)?;
         println!("{}", content.trim());
     } else {
-        ui::info("No _graph.md found. Run `project-wiki graph` to generate it.");
+        ui::info("No _graph.md found. Run `codefidence graph` to generate it.");
     }
 
     Ok(())

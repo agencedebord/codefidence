@@ -1,13 +1,13 @@
 {
-  "name": "@project-wiki/darwin-x64",
+  "name": "@codefidence/darwin-x64",
   "version": "0.1.0",
-  "description": "project-wiki binary for macOS x64 (Intel)",
+  "description": "codefidence binary for macOS x64 (Intel)",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/agencedebord/project-wiki"
+    "url": "https://github.com/agencedebord/codefidence"
   },
   "os": ["darwin"],
   "cpu": ["x64"],
-  "files": ["project-wiki"]
+  "files": ["codefidence"]
 }

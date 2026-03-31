@@ -1,18 +1,18 @@
 [package]
-name = "project-wiki"
+name = "codefidence"
 version = "0.2.0"
 edition = "2024"
 description = "Auto-managed project knowledge wiki for AI-assisted development"
 license = "MIT OR Apache-2.0"
 rust-version = "1.85.0"
-repository = "https://github.com/agencedebord/project-wiki"
-homepage = "https://github.com/agencedebord/project-wiki"
+repository = "https://github.com/agencedebord/codefidence"
+homepage = "https://github.com/agencedebord/codefidence"
 readme = "README.md"
 keywords = ["wiki", "documentation", "cli", "knowledge-base", "ai"]
 categories = ["command-line-utilities", "development-tools"]
 
 [[bin]]
-name = "project-wiki"
+name = "codefidence"
 path = "src/main.rs"
 
 [features]

@@ -139,7 +139,7 @@ fn context_in(wiki_dir: &Path, text: &str, domain_arg: Option<&str>) -> Result<(
     if !domain_dir.exists() {
         let available = list_domains(wiki_dir)?;
         if available.is_empty() {
-            bail!("No domains found. Create one first with `project-wiki add domain <name>`.");
+            bail!("No domains found. Create one first with `codefidence add domain <name>`.");
         }
         bail!(
             "Domain \"{}\" not found. Available domains: {}. Use --domain to specify.",
@@ -213,7 +213,7 @@ fn guess_domain(wiki_dir: &Path, text: &str) -> Result<String> {
     let domains = list_domains(wiki_dir)?;
 
     if domains.is_empty() {
-        bail!("No domains found. Create one first with `project-wiki add domain <name>`.");
+        bail!("No domains found. Create one first with `codefidence add domain <name>`.");
     }
 
     let text_lower = text.to_lowercase();

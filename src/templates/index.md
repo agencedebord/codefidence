@@ -1,10 +1,10 @@
-# Project Wiki
+# Codefidence
 
-> Auto-generated knowledge base. Managed by [project-wiki](https://github.com/agencedebord/project-wiki).
+> Auto-generated knowledge base. Managed by [codefidence](https://github.com/agencedebord/codefidence).
 
 ## Domains
 
-_No domains documented yet. Run `project-wiki init --scan` or create domains with `project-wiki add domain <name>`._
+_No domains documented yet. Run `codefidence init --scan` or create domains with `codefidence add domain <name>`._
 
 ## Recent decisions
 

@@ -12,7 +12,7 @@ pub fn format_candidates_markdown(candidates: &[Candidate]) -> String {
         String::new(),
         "> Auto-generated proposals to confirm, reject, or reformulate.".to_string(),
         "> These candidates are not yet confirmed memory.".to_string(),
-        "> Edit this file or use `project-wiki promote <id>` to validate.".to_string(),
+        "> Edit this file or use `codefidence promote <id>` to validate.".to_string(),
     ];
 
     if candidates.is_empty() {

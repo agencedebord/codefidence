@@ -3,10 +3,10 @@ use std::path::Path;
 
 use anyhow::{Context, Result};
 
-const WIKI_SECTION_MARKER: &str = "## Project Wiki (auto-managed)";
+const WIKI_SECTION_MARKER: &str = "## Codefidence (auto-managed)";
 
 const WIKI_SECTION: &str = r#"
-## Project Wiki (auto-managed)
+## Codefidence (auto-managed)
 
 ### Before each non-trivial task
 1. Read `.wiki/_index.md` for the overview
@@ -79,7 +79,7 @@ mod tests {
 
         let content = fs::read_to_string(&path).unwrap();
         assert!(content.contains(WIKI_SECTION_MARKER));
-        assert!(content.contains("Project Wiki"));
+        assert!(content.contains("Codefidence"));
     }
 
     #[test]

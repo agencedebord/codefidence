@@ -1,23 +1,23 @@
-# Getting started with project-wiki
+# Getting started with codefidence
 
-This guide walks you through setting up `project-wiki` in an existing project. It takes about 20 minutes total, broken into independent phases you can do at your own pace.
+This guide walks you through setting up `codefidence` in an existing project. It takes about 20 minutes total, broken into independent phases you can do at your own pace.
 
-If you just want the one-liner, `project-wiki init --full` does everything at once. This guide exists because "everything at once" means scan + hooks + CLAUDE.md patching + slash commands, and that's a lot to absorb before you know what the tool actually does.
+If you just want the one-liner, `codefidence init --full` does everything at once. This guide exists because "everything at once" means scan + hooks + CLAUDE.md patching + slash commands, and that's a lot to absorb before you know what the tool actually does.
 
 ## Prerequisites
 
 - Rust 1.85+ installed
-- `project-wiki` built and on your PATH:
+- `codefidence` built and on your PATH:
   ```bash
-  git clone https://github.com/agencedebord/project-wiki.git
-  cd project-wiki && cargo install --path .
+  git clone https://github.com/agencedebord/codefidence.git
+  cd codefidence && cargo install --path .
   ```
 
 ## Phase 1: Bootstrap (5 minutes)
 
 ```bash
 cd your-project
-project-wiki init --scan
+codefidence init --scan
 ```
 
 What this does:
@@ -28,11 +28,11 @@ What this does:
 After this step:
 ```bash
 # See what was found
-project-wiki status
+codefidence status
 
 # Browse the generated notes
 ls .wiki/domains/
-project-wiki consult --all
+codefidence consult --all
 ```
 
 The scan works for TypeScript/JavaScript, Python, Rust, Go, Ruby, Java, and PHP projects. TypeScript is the most tested target. Even if detection is imperfect, you now have a skeleton to work with.
@@ -40,7 +40,7 @@ The scan works for TypeScript/JavaScript, Python, Rust, Go, Ruby, Java, and PHP 
 ## Phase 2: Generate and review candidates (10 minutes)
 
 ```bash
-project-wiki generate-candidates
+codefidence generate-candidates
 ```
 
 What this does:
@@ -58,18 +58,18 @@ Not all candidates are useful. The scanner casts a wide net on purpose. Expect n
 
 For each candidate worth keeping:
 ```bash
-project-wiki promote <candidate-id>
-# Example: project-wiki promote billing-001
+codefidence promote <candidate-id>
+# Example: codefidence promote billing-001
 ```
 
 Optional -- override the text or confidence level:
 ```bash
-project-wiki promote billing-001 --text "Client X uses legacy pricing engine" --confidence confirmed
+codefidence promote billing-001 --text "Client X uses legacy pricing engine" --confidence confirmed
 ```
 
 Reject the rest:
 ```bash
-project-wiki reject billing-003
+codefidence reject billing-003
 ```
 
 Three types of memory items, ordered by how dangerous they are to ignore:
@@ -88,13 +88,13 @@ Run the three core commands to make sure your wiki is useful:
 
 ```bash
 # Context: what does the wiki know about a file?
-project-wiki context --file src/billing/invoice.ts
+codefidence context --file src/billing/invoice.ts
 
 # Check-diff: what memory items are affected by recent changes?
-project-wiki check-diff
+codefidence check-diff
 
 # Validate: is the wiki healthy?
-project-wiki validate
+codefidence validate
 ```
 
 `context` should surface relevant memory items for the file. `check-diff` (with no arguments) checks unstaged git changes. `validate` reports broken links, dead references, and staleness.
@@ -104,7 +104,7 @@ If all three produce useful output, the core loop works. If `context` returns no
 ## Phase 5: Install hooks (optional, when ready)
 
 ```bash
-project-wiki init --hooks
+codefidence init --hooks
 ```
 
 This installs two Claude Code hooks:
@@ -115,7 +115,7 @@ Only install hooks when you're comfortable with the wiki content. The hooks inje
 
 To remove them later:
 ```bash
-project-wiki uninstall-hooks
+codefidence uninstall-hooks
 ```
 
 ## What NOT to do first
@@ -149,7 +149,7 @@ Every note and memory item carries a confidence level. This matters because it d
 After the initial scan, most things will be `inferred`. That's fine. Promote confidence as you verify items:
 
 ```bash
-project-wiki confirm billing-001
+codefidence confirm billing-001
 ```
 
 **Rule**: if the wiki contradicts the code, the code wins. Update the wiki.
@@ -158,4 +158,4 @@ project-wiki confirm billing-001
 
 - Read the full [command reference](../README.md#all-commands) in the README
 - Check `.wiki/config.toml` for configuration options (staleness threshold, auto-indexing)
-- Run `project-wiki graph` to see domain dependencies
+- Run `codefidence graph` to see domain dependencies

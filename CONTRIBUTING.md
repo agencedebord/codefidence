@@ -1,11 +1,11 @@
-# Contributing to project-wiki
+# Contributing to codefidence
 
-Thank you for considering contributing to project-wiki!
+Thank you for considering contributing to codefidence!
 
 ## Getting Started
 
 1. Fork the repository
-2. Clone your fork: `git clone https://github.com/YOUR_USERNAME/project-wiki.git`
+2. Clone your fork: `git clone https://github.com/YOUR_USERNAME/codefidence.git`
 3. Create a branch: `git checkout -b my-feature`
 4. Make your changes
 5. Run the checks: `cargo fmt --check && cargo clippy && cargo test`
@@ -78,7 +78,7 @@ Feature-gated integrations (like `notion`) follow this pattern:
 
 - Use the [bug report template](.github/ISSUE_TEMPLATE/bug_report.md) for bugs
 - Use the [feature request template](.github/ISSUE_TEMPLATE/feature_request.md) for ideas
-- Include your OS, Rust version, and project-wiki version
+- Include your OS, Rust version, and codefidence version
 
 ## License
 

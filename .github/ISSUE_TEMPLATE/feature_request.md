@@ -1,6 +1,6 @@
 ---
 name: Feature Request
-about: Suggest a feature for project-wiki
+about: Suggest a feature for codefidence
 title: ""
 labels: enhancement
 ---

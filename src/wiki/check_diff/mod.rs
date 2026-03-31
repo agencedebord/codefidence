@@ -125,7 +125,7 @@ pub fn run(
         } else if pr_comment {
             // Low sensitivity → no output (silent exit)
         } else {
-            println!("[project-wiki] Diff check\n\nNo modified files detected.");
+            println!("[codefidence] Diff check\n\nNo modified files detected.");
         }
         return Ok(());
     }

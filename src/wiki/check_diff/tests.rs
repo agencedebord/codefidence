@@ -102,7 +102,7 @@ fn test_should_ignore_node_modules() {
 
 #[test]
 fn test_should_ignore_target_dir() {
-    assert!(should_ignore("target/debug/project-wiki"));
+    assert!(should_ignore("target/debug/codefidence"));
 }
 
 #[test]
@@ -571,7 +571,7 @@ fn test_output_text_empty() {
         suggested_actions: vec![],
     };
     let text = format_text(&result);
-    assert!(text.contains("[project-wiki] Diff check"));
+    assert!(text.contains("[codefidence] Diff check"));
     assert!(text.contains("0 file(s) analyzed"));
 }
 
@@ -612,7 +612,7 @@ fn test_output_text_full() {
     );
     let text = format_text(&result);
 
-    assert!(text.contains("[project-wiki] Diff check"));
+    assert!(text.contains("[codefidence] Diff check"));
     assert!(text.contains("2 file(s) analyzed"));
     assert!(text.contains("Sensitivity: high"));
     assert!(text.contains("billing (primary)"));
@@ -842,8 +842,8 @@ fn test_pr_comment_formats_medium_sensitivity() {
 
     assert!(comment.is_some());
     let text = comment.unwrap();
-    assert!(text.contains("project-wiki"));
-    assert!(text.contains("<!-- project-wiki-memory-check -->"));
+    assert!(text.contains("codefidence"));
+    assert!(text.contains("<!-- codefidence-memory-check -->"));
     assert!(text.contains("**billing**"));
     assert!(text.contains("TVA toujours incluse"));
     assert!(text.contains("| business_rule |"));
@@ -960,7 +960,7 @@ fn snapshot_text_format_full_output() {
     let text = format_text(&result);
 
     let expected = "\
-[project-wiki] Diff check
+[codefidence] Diff check
 
 3 file(s) analyzed
 2 domain(s) affected
@@ -1026,8 +1026,8 @@ fn snapshot_pr_comment_markdown_format() {
     let comment = format_pr_comment(&result).expect("should produce comment for high sensitivity");
 
     let expected = "\
-## \u{1f9e0} project-wiki \u{2014} Memory Check
-<!-- project-wiki-memory-check -->
+## \u{1f9e0} codefidence \u{2014} Memory Check
+<!-- codefidence-memory-check -->
 
 **Sensitivity: high**
 

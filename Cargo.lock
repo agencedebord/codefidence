@@ -252,6 +252,35 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c8d4a3bb8b1e0c1050499d1815f5ab16d04f0959b233085fb31653fbfc9d98f9"
 
 [[package]]
+name = "codefidence"
+version = "0.2.0"
+dependencies = [
+ "anyhow",
+ "assert_cmd",
+ "chrono",
+ "clap",
+ "console",
+ "dialoguer",
+ "futures",
+ "glob",
+ "gray_matter",
+ "ignore",
+ "indicatif",
+ "insta",
+ "predicates",
+ "proptest",
+ "rayon",
+ "regex",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "serde_yml",
+ "tempfile",
+ "tokio",
+ "walkdir",
+]
+
+[[package]]
 name = "colorchoice"
 version = "1.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1118,35 +1147,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8fd00f0bb2e90d81d1044c2b32617f68fcb9fa3bb7640c23e9c748e53fb30934"
 dependencies = [
  "unicode-ident",
-]
-
-[[package]]
-name = "project-wiki"
-version = "0.2.0"
-dependencies = [
- "anyhow",
- "assert_cmd",
- "chrono",
- "clap",
- "console",
- "dialoguer",
- "futures",
- "glob",
- "gray_matter",
- "ignore",
- "indicatif",
- "insta",
- "predicates",
- "proptest",
- "rayon",
- "regex",
- "reqwest",
- "serde",
- "serde_json",
- "serde_yml",
- "tempfile",
- "tokio",
- "walkdir",
 ]
 
 [[package]]

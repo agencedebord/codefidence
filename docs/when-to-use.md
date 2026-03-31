@@ -1,6 +1,6 @@
-# When to use project-wiki
+# When to use codefidence
 
-## When project-wiki works well
+## When codefidence works well
 
 - **TypeScript/JavaScript backend projects with business logic** — services with billing rules, access control exceptions, domain-specific calculations. The kind of code where "why is this like that?" matters more than "what does this do?"
 - **Projects with undocumented exceptions and legacy code** — workarounds nobody remembers, client-specific overrides, intentional deviations from the norm. The wiki captures these before they get "fixed" by someone who didn't know.
@@ -12,7 +12,7 @@
 - **Very small projects (< 10 files)** — you can keep it all in your head. The overhead of maintaining a wiki exceeds the benefit.
 - **Pure UI/CSS projects** — few business rules to track. The "decisions" that matter are visual, not logical.
 - **Greenfield projects with no legacy decisions yet** — nothing to document. Start the wiki when the first non-obvious decision lands, not on day one.
-- **Projects that already have thorough ADR documentation** — if your team already writes Architecture Decision Records and keeps them current, project-wiki adds marginal value. It's designed for teams that don't write ADRs.
+- **Projects that already have thorough ADR documentation** — if your team already writes Architecture Decision Records and keeps them current, codefidence adds marginal value. It's designed for teams that don't write ADRs.
 
 ## Best fit
 

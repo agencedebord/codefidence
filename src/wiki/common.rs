@@ -44,7 +44,7 @@ pub fn find_wiki_root() -> Result<PathBuf> {
         }
         match dir.parent() {
             Some(parent) => dir = parent,
-            None => bail!("No .wiki/ found. Run `project-wiki init` first."),
+            None => bail!("No .wiki/ found. Run `codefidence init` first."),
         }
     }
 }
@@ -108,7 +108,7 @@ pub fn list_domain_names(wiki_dir: &Path) -> Result<Vec<String>> {
 /// Check that a `.wiki/` directory exists, bail otherwise.
 pub fn ensure_wiki_exists(wiki_dir: &Path) -> Result<()> {
     if !wiki_dir.exists() {
-        bail!("No .wiki/ found. Run `project-wiki init` first.");
+        bail!("No .wiki/ found. Run `codefidence init` first.");
     }
     Ok(())
 }

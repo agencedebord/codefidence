@@ -7,7 +7,7 @@ use crate::wiki;
 
 #[derive(Parser)]
 #[command(
-    name = "project-wiki",
+    name = "codefidence",
     about = "Auto-managed project knowledge wiki for AI-assisted development",
     version
 )]
@@ -149,9 +149,9 @@ enum Commands {
     /// Resolution is file-to-domain only — no semantic diff analysis.
     ///
     /// Examples:
-    ///   project-wiki check-diff                          # check unstaged git changes
-    ///   project-wiki check-diff src/billing/invoice.ts   # check specific files
-    ///   project-wiki check-diff --staged --json          # staged changes, JSON output
+    ///   codefidence check-diff                          # check unstaged git changes
+    ///   codefidence check-diff src/billing/invoice.ts   # check specific files
+    ///   codefidence check-diff --staged --json          # staged changes, JSON output
     CheckDiff {
         /// Files to check (default: git diff --name-only)
         files: Vec<String>,
@@ -333,7 +333,7 @@ pub async fn run() -> Result<()> {
         Commands::GenerateCandidates => {
             let wiki_dir = std::path::Path::new(".wiki");
             if !wiki_dir.exists() {
-                bail!("No .wiki/ found. Run `project-wiki init` first.");
+                bail!("No .wiki/ found. Run `codefidence init` first.");
             }
             let scan_result = init::scan::run()?;
             let candidates = init::candidates::generate(&scan_result.domains);
@@ -351,8 +351,8 @@ pub async fn run() -> Result<()> {
                     eprintln!("  {} [{}]  \"{}\"", c.id, c.type_, c.text);
                 }
                 eprintln!();
-                eprintln!("Next: project-wiki promote <id>");
-                eprintln!("  or: project-wiki promote --next");
+                eprintln!("Next: codefidence promote <id>");
+                eprintln!("  or: codefidence promote --next");
             }
             Ok(())
         }

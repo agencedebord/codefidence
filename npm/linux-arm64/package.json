@@ -1,13 +1,13 @@
 {
-  "name": "@project-wiki/linux-arm64",
+  "name": "@codefidence/linux-arm64",
   "version": "0.1.0",
-  "description": "project-wiki binary for Linux ARM64",
+  "description": "codefidence binary for Linux ARM64",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/agencedebord/project-wiki"
+    "url": "https://github.com/agencedebord/codefidence"
   },
   "os": ["linux"],
   "cpu": ["arm64"],
-  "files": ["project-wiki"]
+  "files": ["codefidence"]
 }

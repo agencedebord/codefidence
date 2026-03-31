@@ -1,6 +1,6 @@
 # Team workflow guide
 
-How to use `project-wiki` as a team without it becoming another thing nobody maintains.
+How to use `codefidence` as a team without it becoming another thing nobody maintains.
 
 ## Who maintains the wiki?
 
@@ -20,19 +20,19 @@ After `generate-candidates` scans your codebase and surfaces potential items:
 
 - Promote when you recognize a real exception, decision, or business rule in the candidate.
 - Rule of thumb: if you'd explain it verbally to a new team member, it deserves to be a memory item.
-- Use `project-wiki promote <id>` to move it into the relevant domain note.
+- Use `codefidence promote <id>` to move it into the relevant domain note.
 
 ### Confirm an item
 
 - After you've verified the behavior is still true in the code.
 - During periodic review (monthly is a good cadence).
-- After touching code near a memory item — if it still holds, bump its confidence with `project-wiki confirm <id>`.
+- After touching code near a memory item — if it still holds, bump its confidence with `codefidence confirm <id>`.
 
 ### Deprecate
 
 - When the behavior no longer exists in the code.
 - When a decision has been reversed.
-- Don't delete — use `project-wiki deprecate <id>` to keep the audit trail. Future readers benefit from knowing what *was* true and why it changed.
+- Don't delete — use `codefidence deprecate <id>` to keep the audit trail. Future readers benefit from knowing what *was* true and why it changed.
 
 ## Handling merge conflicts in .wiki/
 
@@ -45,7 +45,7 @@ Treat like code conflicts — both sides review. The `memory_items` YAML array c
 Accept either side, then run:
 
 ```bash
-project-wiki rebuild
+codefidence rebuild
 ```
 
 These files are generated — never resolve them by hand.
@@ -60,7 +60,7 @@ Accept either side. Candidates are ephemeral. Re-run `generate-candidates` if ne
 2. **Use `validate --strict` for releases** — promotes warnings to errors.
 3. **Keep items concrete** — write "Client X uses legacy pricing via `legacy_pricing.ts`", not "there's a special case somewhere."
 4. **Deprecate instead of deleting** — maintains history and audit trail.
-5. **Review migration status** — `project-wiki validate` reports notes without memory items (check #11).
+5. **Review migration status** — `codefidence validate` reports notes without memory items (check #11).
 
 ## Recommended PR conventions
 
@@ -75,12 +75,12 @@ Accept either side. Candidates are ephemeral. Re-run `generate-candidates` if ne
 ```yaml
 # In your CI pipeline
 - name: Validate wiki
-  run: project-wiki validate
+  run: codefidence validate
 ```
 
 For stricter checks before release:
 
 ```yaml
 - name: Strict wiki validation
-  run: project-wiki validate --strict
+  run: codefidence validate --strict
 ```

@@ -53,7 +53,7 @@ memory_items:
 
 ## Purpose
 
-Scans a codebase to discover domains, analyze dependencies, and extract structural details. This is the entry point of `project-wiki init` and produces the initial wiki content from an existing project.
+Scans a codebase to discover domains, analyze dependencies, and extract structural details. This is the entry point of `codefidence init` and produces the initial wiki content from an existing project.
 
 ## Key behaviors
 

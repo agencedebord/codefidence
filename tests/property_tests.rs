@@ -19,7 +19,7 @@ mod property_tests {
             fs::create_dir_all(&sub).unwrap();
 
             // Should either succeed or return a clean error, never panic
-            let _ = Command::cargo_bin("project-wiki")
+            let _ = Command::cargo_bin("codefidence")
                 .unwrap()
                 .current_dir(&sub)
                 .arg("init")
@@ -32,7 +32,7 @@ mod property_tests {
         fn search_never_panics(term in "\\PC{1,100}") {
             let dir = TempDir::new().unwrap();
             // Init a wiki first
-            Command::cargo_bin("project-wiki")
+            Command::cargo_bin("codefidence")
                 .unwrap()
                 .current_dir(dir.path())
                 .arg("init")
@@ -40,7 +40,7 @@ mod property_tests {
                 .success();
 
             // Search should never panic, even with arbitrary Unicode
-            let _ = Command::cargo_bin("project-wiki")
+            let _ = Command::cargo_bin("codefidence")
                 .unwrap()
                 .current_dir(dir.path())
                 .args(["search", &term])
@@ -52,7 +52,7 @@ mod property_tests {
         #[test]
         fn add_domain_never_panics(name in "\\PC{1,50}") {
             let dir = TempDir::new().unwrap();
-            Command::cargo_bin("project-wiki")
+            Command::cargo_bin("codefidence")
                 .unwrap()
                 .current_dir(dir.path())
                 .arg("init")
@@ -60,7 +60,7 @@ mod property_tests {
                 .success();
 
             // Should either succeed or return clean error, never panic
-            let _ = Command::cargo_bin("project-wiki")
+            let _ = Command::cargo_bin("codefidence")
                 .unwrap()
                 .current_dir(dir.path())
                 .args(["add", "domain", &name])
@@ -72,7 +72,7 @@ mod property_tests {
         #[test]
         fn add_decision_never_panics(text in "\\PC{1,200}") {
             let dir = TempDir::new().unwrap();
-            Command::cargo_bin("project-wiki")
+            Command::cargo_bin("codefidence")
                 .unwrap()
                 .current_dir(dir.path())
                 .arg("init")
@@ -80,7 +80,7 @@ mod property_tests {
                 .success();
 
             // Should never panic
-            let _ = Command::cargo_bin("project-wiki")
+            let _ = Command::cargo_bin("codefidence")
                 .unwrap()
                 .current_dir(dir.path())
                 .args(["add", "decision", &text])

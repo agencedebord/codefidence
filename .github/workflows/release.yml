@@ -22,24 +22,24 @@ jobs:
           - target: aarch64-apple-darwin
             runner: macos-14
             npm-pkg: darwin-arm64
-            binary: project-wiki
+            binary: codefidence
           - target: x86_64-apple-darwin
             runner: macos-13
             npm-pkg: darwin-x64
-            binary: project-wiki
+            binary: codefidence
           - target: x86_64-unknown-linux-gnu
             runner: ubuntu-latest
             npm-pkg: linux-x64
-            binary: project-wiki
+            binary: codefidence
           - target: aarch64-unknown-linux-gnu
             runner: ubuntu-latest
             npm-pkg: linux-arm64
-            binary: project-wiki
+            binary: codefidence
             cross: true
           - target: x86_64-pc-windows-msvc
             runner: windows-latest
             npm-pkg: win32-x64
-            binary: project-wiki.exe
+            binary: codefidence.exe
 
     steps:
       - uses: actions/checkout@v4
@@ -71,13 +71,13 @@ jobs:
         if: runner.os != 'Windows'
         run: |
           cd target/${{ matrix.target }}/release
-          tar czf ../../../project-wiki-${{ matrix.target }}.tar.gz ${{ matrix.binary }}
+          tar czf ../../../codefidence-${{ matrix.target }}.tar.gz ${{ matrix.binary }}
 
       - name: Create zip (windows)
         if: runner.os == 'Windows'
         run: |
           cd target/${{ matrix.target }}/release
-          7z a ../../../project-wiki-${{ matrix.target }}.zip ${{ matrix.binary }}
+          7z a ../../../codefidence-${{ matrix.target }}.zip ${{ matrix.binary }}
 
       - name: Upload binary artifact
         uses: actions/upload-artifact@v4
@@ -90,8 +90,8 @@ jobs:
         with:
           name: archive-${{ matrix.target }}
           path: |
-            project-wiki-${{ matrix.target }}.tar.gz
-            project-wiki-${{ matrix.target }}.zip
+            codefidence-${{ matrix.target }}.tar.gz
+            codefidence-${{ matrix.target }}.zip
 
   release:
     name: Create GitHub Release
@@ -135,11 +135,11 @@ jobs:
 
       - name: Copy binaries to npm packages
         run: |
-          cp binaries/binary-aarch64-apple-darwin/project-wiki npm/darwin-arm64/project-wiki
-          cp binaries/binary-x86_64-apple-darwin/project-wiki npm/darwin-x64/project-wiki
-          cp binaries/binary-x86_64-unknown-linux-gnu/project-wiki npm/linux-x64/project-wiki
-          cp binaries/binary-aarch64-unknown-linux-gnu/project-wiki npm/linux-arm64/project-wiki
-          cp binaries/binary-x86_64-pc-windows-msvc/project-wiki.exe npm/win32-x64/project-wiki.exe
+          cp binaries/binary-aarch64-apple-darwin/codefidence npm/darwin-arm64/codefidence
+          cp binaries/binary-x86_64-apple-darwin/codefidence npm/darwin-x64/codefidence
+          cp binaries/binary-x86_64-unknown-linux-gnu/codefidence npm/linux-x64/codefidence
+          cp binaries/binary-aarch64-unknown-linux-gnu/codefidence npm/linux-arm64/codefidence
+          cp binaries/binary-x86_64-pc-windows-msvc/codefidence.exe npm/win32-x64/codefidence.exe
 
       - name: Set version from tag
         run: |
@@ -164,7 +164,7 @@ jobs:
         run: |
           for pkg in darwin-arm64 darwin-x64 linux-x64 linux-arm64 win32-x64; do
             cd npm/$pkg
-            chmod +x project-wiki 2>/dev/null || true
+            chmod +x codefidence 2>/dev/null || true
             npm publish --access public
             cd ../..
           done
