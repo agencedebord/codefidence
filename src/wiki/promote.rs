@@ -139,6 +139,8 @@ pub fn promote(
         candidate.type_, text, confidence
     ));
 
+    print_next_steps(wiki_dir);
+
     Ok(())
 }
 
@@ -170,6 +172,8 @@ pub fn reject(wiki_dir: &Path, candidate_id: &str) -> Result<()> {
 
     ui::success(&format!("Rejected {candidate_id}"));
 
+    print_next_steps(wiki_dir);
+
     Ok(())
 }
 
@@ -192,7 +196,7 @@ pub fn find_next_candidate(wiki_dir: &Path) -> Result<(String, String)> {
         .collect();
 
     if pending.is_empty() {
-        bail!("No pending candidates. All candidates have been processed.");
+        bail!("No pending candidates. Run: project-wiki generate-candidates");
     }
 
     // Sort by type priority: exception (0) > decision (1) > business_rule (2)
@@ -202,6 +206,27 @@ pub fn find_next_candidate(wiki_dir: &Path) -> Result<(String, String)> {
         .unwrap(); // safe: we checked non-empty above
 
     Ok((best.id.clone(), best.type_.clone()))
+}
+
+/// Count remaining pending candidates in _candidates.md.
+/// Returns 0 if the file cannot be read or parsed.
+pub fn count_pending(wiki_dir: &Path) -> usize {
+    let candidates_path = wiki_dir.join("_candidates.md");
+    parse_candidates_file(&candidates_path)
+        .map(|cs| cs.iter().filter(|c| c.status == "pending").count())
+        .unwrap_or(0)
+}
+
+/// Print guidance about next steps based on remaining pending candidates.
+fn print_next_steps(wiki_dir: &Path) {
+    let remaining = count_pending(wiki_dir);
+    if remaining > 0 {
+        ui::info(&format!(
+            "{remaining} more pending candidate(s). Run: project-wiki promote --next"
+        ));
+    } else {
+        ui::info("All candidates processed. Run: project-wiki validate");
+    }
 }
 
 /// Priority ordering for candidate types (lower = higher priority).
@@ -1041,5 +1066,52 @@ memory_items:
         assert!(type_priority("exception") < type_priority("decision"));
         assert!(type_priority("decision") < type_priority("business_rule"));
         assert!(type_priority("business_rule") < type_priority("unknown_type"));
+    }
+
+    // ── Guidance / next-steps tests ───────────────────────────────────
+
+    #[test]
+    fn test_count_pending_with_mixed_statuses() {
+        let dir = TempDir::new().unwrap();
+        let wiki = setup_wiki(&dir);
+        create_candidates_file(&wiki, &candidates_content());
+        create_note(&wiki, "billing", &note_content());
+
+        // Both candidates start as pending
+        assert_eq!(count_pending(&wiki), 2);
+
+        // After promoting one, only 1 remains
+        promote(&wiki, "billing-001", None, None).unwrap();
+        assert_eq!(count_pending(&wiki), 1);
+
+        // After rejecting the other, 0 remain
+        reject(&wiki, "billing-002").unwrap();
+        assert_eq!(count_pending(&wiki), 0);
+    }
+
+    #[test]
+    fn test_count_pending_no_candidates_file() {
+        let dir = TempDir::new().unwrap();
+        let wiki = setup_wiki(&dir);
+        // No _candidates.md
+        assert_eq!(count_pending(&wiki), 0);
+    }
+
+    #[test]
+    fn test_find_next_candidate_no_pending_error_message() {
+        let dir = TempDir::new().unwrap();
+        let wiki = setup_wiki(&dir);
+
+        let content =
+            candidates_content().replace("**status**: pending", "**status**: confirmed");
+        create_candidates_file(&wiki, &content);
+
+        let result = find_next_candidate(&wiki);
+        assert!(result.is_err());
+        let msg = result.unwrap_err().to_string();
+        assert!(
+            msg.contains("project-wiki generate-candidates"),
+            "Error should suggest generate-candidates, got: {msg}"
+        );
     }
 }
