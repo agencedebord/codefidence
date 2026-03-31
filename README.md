@@ -42,7 +42,7 @@ project-wiki init --full    # scans codebase, installs hooks, patches CLAUDE.md
 project-wiki status
 ```
 
-`init --full` does three things: scans your codebase to bootstrap domain notes, installs Claude Code hooks, and patches `CLAUDE.md` (at project root) with wiki instructions. Each step is also available separately (`--scan`, `--hooks`).
+`init --full` does four things: scans your codebase to bootstrap domain notes, installs Claude Code hooks, patches `CLAUDE.md` (at project root) with wiki instructions, and installs Claude slash commands. Each step is also available separately (`--scan`, `--hooks`).
 
 ## Memory items
 
@@ -185,6 +185,7 @@ Maintain
 Candidates
   generate-candidates        Scan codebase for potential memory items
   promote <id>               Promote a candidate to confirmed memory item
+  promote --next             Auto-promote the highest-priority pending candidate
   reject <id>                Reject a candidate
 
 Hooks

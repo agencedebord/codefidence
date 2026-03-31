@@ -2,7 +2,7 @@
 
 This guide walks you through setting up `project-wiki` in an existing project. It takes about 20 minutes total, broken into independent phases you can do at your own pace.
 
-If you just want the one-liner, `project-wiki init --full` does everything at once. This guide exists because "everything at once" means scan + hooks + CLAUDE.md patching, and that's a lot to absorb before you know what the tool actually does.
+If you just want the one-liner, `project-wiki init --full` does everything at once. This guide exists because "everything at once" means scan + hooks + CLAUDE.md patching + slash commands, and that's a lot to absorb before you know what the tool actually does.
 
 ## Prerequisites
 

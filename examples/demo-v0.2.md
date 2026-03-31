@@ -1,7 +1,7 @@
 # project-wiki v0.2 Demo Scenarios
 
 > Captured on 2026-03-30 against the project-wiki codebase itself.
-> The wiki has 3 domain notes (check-diff, context, validate) with 13 memory items total.
+> The wiki has 10 domain notes with 33 memory items total.
 
 ---
 
@@ -276,7 +276,7 @@ $ cargo run -- validate
 **Output:**
 
 ```
-project-wiki v0.1.0
+project-wiki v0.2.0
 
 Validating wiki
 
@@ -293,7 +293,7 @@ Validating wiki
     No active notes link to deprecated notes.
 
   Confidence ratio
-    0/3 notes (0%) are inferred or needs-validation -- within threshold
+    0/10 notes (0%) are inferred or needs-validation -- within threshold
 
   Staleness
     No stale notes (all updated within 30 days).
@@ -308,10 +308,10 @@ Validating wiki
     All referenced dependencies exist in wiki.
 
   Memory items
-    13 memory item(s) across 3 note(s) -- all valid.
+    33 memory item(s) across 10 note(s) -- all valid.
 
   Migration status
-    All 3 note(s) have memory_items.
+    All 10 note(s) have memory_items.
 
   Summary
     11 passed  0 warnings  0 errors

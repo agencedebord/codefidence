@@ -9,7 +9,7 @@ Everyone who touches the code. The wiki is repo-native — it lives in `.wiki/` 
 **Conventions:**
 
 - Wiki changes go in the same PR as the code they document. Use a separate commit with a `wiki:` prefix (e.g., `wiki: document billing exception for client X`).
-- No dedicated "wiki owner." Ownership follows domain ownership — whoever owns `src/billing/` owns `.wiki/domains/billing.md`.
+- No dedicated "wiki owner." Ownership follows domain ownership — whoever owns `src/billing/` owns `.wiki/domains/billing/_overview.md`.
 - `validate` is the quality gate. Run it in CI to catch broken links, stale notes, and orphaned references before they merge.
 
 ## When to promote / confirm / deprecate
