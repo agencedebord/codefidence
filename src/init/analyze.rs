@@ -175,34 +175,30 @@ fn call_claude(prompt: &str) -> Result<LlmAnalysis> {
     let has_api_key = std::env::var("ANTHROPIC_API_KEY")
         .map(|v| !v.trim().is_empty())
         .unwrap_or(false);
-    let schema = json_schema();
 
-    let mut cmd = Command::new("claude");
-    cmd.args([
-        "-p",
-        prompt,
-        "--output-format",
-        "json",
-        "--model",
-        CLAUDE_MODEL,
-        "--json-schema",
-        schema,
-        "--no-session-persistence",
-    ]);
+    let args = build_claude_args(prompt, has_api_key);
+    let output = Command::new("claude")
+        .args(&args)
+        .output()
+        .context("Failed to execute claude CLI")?;
 
-    if has_api_key {
-        // Fast path: no hooks, no CLAUDE.md, no keychain reads
-        cmd.arg("--bare");
-    }
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
 
-    let output = cmd.output().context("Failed to execute claude CLI")?;
+    parse_claude_response(&stdout, &stderr, output.status.success())
+}
 
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        let stdout = String::from_utf8_lossy(&output.stdout);
-
+/// Parse the Claude CLI response envelope into an `LlmAnalysis`.
+///
+/// Extracted from `call_claude` so it can be tested without a real subprocess.
+/// Handles three response shapes:
+/// 1. `structured_output` object (preferred, from --json-schema)
+/// 2. `result` text field containing JSON (fallback)
+/// 3. Error envelopes (`is_error: true` or non-zero exit)
+fn parse_claude_response(stdout: &str, stderr: &str, success: bool) -> Result<LlmAnalysis> {
+    if !success {
         // Claude CLI returns errors as JSON in stdout with is_error: true
-        if let Ok(envelope) = serde_json::from_str::<serde_json::Value>(&stdout) {
+        if let Ok(envelope) = serde_json::from_str::<serde_json::Value>(stdout) {
             if let Some(result) = envelope["result"].as_str() {
                 if !result.is_empty() {
                     bail!("Claude CLI error: {}", result);
@@ -221,18 +217,12 @@ fn call_claude(prompt: &str) -> Result<LlmAnalysis> {
         } else {
             stderr.trim().to_string()
         };
-        bail!(
-            "Claude CLI failed (exit code {}): {}",
-            output.status,
-            error_detail
-        );
+        bail!("Claude CLI failed: {}", error_detail);
     }
-
-    let stdout = String::from_utf8_lossy(&output.stdout);
 
     // claude --output-format json wraps the result in a JSON envelope
     let envelope: serde_json::Value =
-        serde_json::from_str(&stdout).context("Failed to parse Claude CLI JSON output")?;
+        serde_json::from_str(stdout).context("Failed to parse Claude CLI JSON output")?;
 
     // With --json-schema, Claude returns structured output in `structured_output`.
     // Try to parse it directly as LlmAnalysis.
@@ -286,6 +276,28 @@ fn call_claude(prompt: &str) -> Result<LlmAnalysis> {
     })?;
 
     Ok(parsed)
+}
+
+/// Build the argument list for the Claude CLI subprocess.
+/// Returns owned strings to avoid lifetime issues with Command.
+fn build_claude_args(prompt: &str, has_api_key: bool) -> Vec<String> {
+    let mut args = vec![
+        "-p".to_string(),
+        prompt.to_string(),
+        "--output-format".to_string(),
+        "json".to_string(),
+        "--model".to_string(),
+        CLAUDE_MODEL.to_string(),
+        "--json-schema".to_string(),
+        json_schema().to_string(),
+        "--no-session-persistence".to_string(),
+    ];
+
+    if has_api_key {
+        args.push("--bare".to_string());
+    }
+
+    args
 }
 
 fn collect_file_snippets(domain: &DomainInfo) -> Vec<FileSnippet> {
@@ -704,5 +716,125 @@ mod tests {
         assert_eq!(schema["type"], "object");
         assert!(schema["properties"]["description"].is_object());
         assert!(schema["properties"]["behaviors"].is_object());
+    }
+
+    // ─── parse_claude_response ───
+
+    #[test]
+    fn parse_response_structured_output() {
+        // The happy path: Claude returns structured_output with our schema
+        let stdout = r#"{
+            "type": "result",
+            "result": "",
+            "structured_output": {
+                "description": "Handles billing operations.",
+                "behaviors": [{"summary": "Validate amounts", "detail": "Checks positivity."}],
+                "interactions": [],
+                "gotchas": [],
+                "memory_candidates": []
+            }
+        }"#;
+
+        let analysis = parse_claude_response(stdout, "", true).unwrap();
+        assert_eq!(analysis.description, "Handles billing operations.");
+        assert_eq!(analysis.behaviors.len(), 1);
+        assert_eq!(analysis.behaviors[0].summary, "Validate amounts");
+    }
+
+    #[test]
+    fn parse_response_fallback_to_result_text() {
+        // structured_output is empty, falls back to result text
+        let stdout = r#"{
+            "type": "result",
+            "result": "{\"description\": \"From result text.\", \"behaviors\": []}",
+            "structured_output": {}
+        }"#;
+
+        let analysis = parse_claude_response(stdout, "", true).unwrap();
+        assert_eq!(analysis.description, "From result text.");
+    }
+
+    #[test]
+    fn parse_response_result_with_fencing() {
+        // Claude wraps JSON in markdown fencing despite --json-schema
+        let stdout = r#"{
+            "type": "result",
+            "result": "```json\n{\"description\": \"Fenced response.\"}\n```",
+            "structured_output": {}
+        }"#;
+
+        let analysis = parse_claude_response(stdout, "", true).unwrap();
+        assert_eq!(analysis.description, "Fenced response.");
+    }
+
+    #[test]
+    fn parse_response_error_with_is_error() {
+        // Claude returns an error in the result field on non-zero exit
+        let stdout = r#"{"type": "result", "is_error": true, "result": "Not logged in"}"#;
+
+        let err = parse_claude_response(stdout, "", false).unwrap_err();
+        assert!(
+            err.to_string().contains("Not logged in"),
+            "Expected 'Not logged in' in error, got: {}",
+            err
+        );
+    }
+
+    #[test]
+    fn parse_response_error_no_json() {
+        // Claude binary fails with stderr only, no JSON in stdout
+        let err = parse_claude_response("", "command not found: claude", false).unwrap_err();
+        assert!(
+            err.to_string().contains("command not found"),
+            "Expected stderr in error, got: {}",
+            err
+        );
+    }
+
+    #[test]
+    fn parse_response_no_result_field() {
+        // Unexpected envelope shape: no result and no structured_output
+        let stdout = r#"{"type": "result", "session_id": "abc"}"#;
+
+        let err = parse_claude_response(stdout, "", true).unwrap_err();
+        assert!(
+            err.to_string().contains("no 'result' field"),
+            "Expected 'no result field' in error, got: {}",
+            err
+        );
+    }
+
+    // ─── build_claude_args ───
+
+    #[test]
+    fn build_args_without_api_key() {
+        let args = build_claude_args("test prompt", false);
+        assert!(args.contains(&"-p".to_string()));
+        assert!(args.contains(&"test prompt".to_string()));
+        assert!(args.contains(&"--no-session-persistence".to_string()));
+        assert!(
+            !args.contains(&"--bare".to_string()),
+            "Should not include --bare without API key"
+        );
+    }
+
+    #[test]
+    fn build_args_with_api_key() {
+        let args = build_claude_args("test prompt", true);
+        assert!(
+            args.contains(&"--bare".to_string()),
+            "Should include --bare with API key"
+        );
+    }
+
+    #[test]
+    fn build_args_includes_json_schema() {
+        let args = build_claude_args("prompt", false);
+        assert!(args.contains(&"--json-schema".to_string()));
+        // The schema should be valid JSON
+        let schema_idx = args.iter().position(|a| a == "--json-schema").unwrap();
+        let schema_val = &args[schema_idx + 1];
+        let _: serde_json::Value =
+            serde_json::from_str(schema_val).expect("--json-schema value should be valid JSON");
     }
 }
