@@ -1,4 +1,5 @@
 use std::collections::{HashMap, HashSet};
+use std::fs;
 use std::path::{Path, PathBuf};
 
 use anyhow::Result;
@@ -21,6 +22,37 @@ const EXTRA_SKIP_DIRS: &[&str] = &[
     "dist",
     "build",
     ".next",
+];
+
+/// Top-level directories that are infrastructure, not business domains.
+/// These are excluded from app-directory detection.
+const INFRA_DIRS: &[&str] = &[
+    "src",
+    "config",
+    "scripts",
+    "deploy",
+    "static",
+    "templates",
+    "public",
+    "assets",
+    "docs",
+    "doc",
+    "test",
+    "tests",
+    "spec",
+    "bin",
+    "build",
+    "dist",
+    "media",
+    "locale",
+    "fixtures",
+    "migrations",
+    "management",
+    "node_modules",
+    "vendor",
+    ".github",
+    ".vscode",
+    ".idea",
 ];
 
 pub(crate) const DOMAIN_PARENT_DIRS: &[&str] = &[
@@ -56,6 +88,12 @@ pub fn discover_structure(root: &Path) -> Result<(Vec<PathBuf>, DomainFileMap)> 
     let mut all_files: Vec<PathBuf> = Vec::new();
     let mut domain_files: HashMap<String, Vec<PathBuf>> = HashMap::new();
 
+    // Pre-scan: detect top-level directories that look like app modules
+    // (e.g. Django apps, Go packages, standalone Python packages).
+    // These take priority over DOMAIN_PARENT_DIRS to avoid misdetecting
+    // `api/views.py` as domain "views" instead of domain "api".
+    let app_dirs = detect_app_directories(root);
+
     let mut walker = WalkBuilder::new(root);
     walker
         .hidden(true) // skip hidden files/dirs
@@ -89,8 +127,12 @@ pub fn discover_structure(root: &Path) -> Result<(Vec<PathBuf>, DomainFileMap)> 
         let path = entry.path().to_path_buf();
         all_files.push(path.clone());
 
-        // Try to assign this file to a domain
-        if let Some(domain_name) = extract_domain_name(&path, root) {
+        // Try app-directory detection first (accounts/views.py → "accounts").
+        // This must run before DOMAIN_PARENT_DIRS to avoid "api" being treated
+        // as a parent dir and extracting "views" as the domain.
+        if let Some(domain_name) = extract_app_domain(&path, root, &app_dirs) {
+            domain_files.entry(domain_name).or_default().push(path);
+        } else if let Some(domain_name) = extract_domain_name(&path, root) {
             domain_files.entry(domain_name).or_default().push(path);
         }
     }
@@ -103,6 +145,91 @@ pub fn discover_structure(root: &Path) -> Result<(Vec<PathBuf>, DomainFileMap)> 
     merge_loose_files_into_domains(&mut domain_files, &all_files, root);
 
     Ok((all_files, domain_files))
+}
+
+/// Detect top-level directories that look like app modules.
+///
+/// A directory is considered an app if it:
+/// - Contains `__init__.py` (Python package — Django/Flask app)
+/// - OR contains ≥3 direct source files
+///
+/// Infrastructure directories (src, config, scripts, etc.) are excluded.
+fn detect_app_directories(root: &Path) -> HashSet<String> {
+    let mut app_dirs = HashSet::new();
+
+    let Ok(entries) = fs::read_dir(root) else {
+        return app_dirs;
+    };
+
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if !path.is_dir() {
+            continue;
+        }
+
+        let name = entry.file_name().to_string_lossy().to_string();
+
+        // Skip hidden dirs
+        if name.starts_with('.') {
+            continue;
+        }
+
+        // Skip known infrastructure directories
+        if INFRA_DIRS.contains(&name.to_lowercase().as_str()) {
+            continue;
+        }
+
+        // Skip directories in EXTRA_SKIP_DIRS
+        if EXTRA_SKIP_DIRS.contains(&name.as_str()) {
+            continue;
+        }
+
+        // Check for app markers
+        let has_init_py = path.join("__init__.py").exists();
+        let has_enough_source_files = count_direct_source_files(&path) >= 3;
+
+        if has_init_py || has_enough_source_files {
+            app_dirs.insert(normalize_domain_name(&name));
+        }
+    }
+
+    app_dirs
+}
+
+/// Count source files directly inside a directory (not recursive).
+fn count_direct_source_files(dir: &Path) -> usize {
+    let Ok(entries) = fs::read_dir(dir) else {
+        return 0;
+    };
+
+    entries
+        .flatten()
+        .filter(|e| {
+            e.path().is_file()
+                && e.path()
+                    .extension()
+                    .and_then(|ext| ext.to_str())
+                    .map(|ext| SOURCE_EXTENSIONS.contains(&ext))
+                    .unwrap_or(false)
+        })
+        .count()
+}
+
+/// Extract domain from a file path using pre-detected app directories.
+///
+/// If the first path component (relative to root) matches a known app directory,
+/// use that as the domain name. This handles Django-style projects where
+/// `accounts/views.py` should map to domain "accounts", not domain "views".
+fn extract_app_domain(path: &Path, root: &Path, app_dirs: &HashSet<String>) -> Option<String> {
+    let rel = path.strip_prefix(root).ok()?;
+    let first_component = rel.components().next()?.as_os_str().to_str()?;
+    let normalized = normalize_domain_name(first_component);
+
+    if app_dirs.contains(&normalized) {
+        Some(normalized)
+    } else {
+        None
+    }
 }
 
 pub fn extract_domain_name(path: &Path, root: &Path) -> Option<String> {

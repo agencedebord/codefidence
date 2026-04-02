@@ -48,6 +48,7 @@ impl DomainInfo {
 
     /// Returns a factual structural summary string.
     /// Example: "This domain contains 4 source files, 2 test files, and 3 detected models."
+    #[allow(dead_code)] // Used by tests and may be useful for future features
     pub fn structural_description(&self) -> String {
         let mut parts: Vec<String> = Vec::new();
 
@@ -97,10 +98,12 @@ impl DomainInfo {
     }
 }
 
+#[allow(dead_code)]
 fn plural(n: usize) -> &'static str {
     if n == 1 { "" } else { "s" }
 }
 
+#[allow(dead_code)]
 fn join_natural(parts: &[String]) -> String {
     match parts.len() {
         0 => String::new(),
@@ -183,12 +186,13 @@ pub fn run() -> Result<ScanResult> {
 
         let test_files: Vec<String> = files
             .iter()
-            .filter(|f| structure::is_test_file(f))
+            .filter(|f| !is_noise_file(f) && structure::is_test_file(f))
             .map(|f| structure::relativize(f, &project_root))
             .collect();
 
         let relative_files: Vec<String> = files
             .iter()
+            .filter(|f| !is_noise_file(f))
             .map(|f| structure::relativize(f, &project_root))
             .collect();
 
@@ -222,6 +226,36 @@ pub fn run() -> Result<ScanResult> {
         total_files_scanned: total_files,
         languages_detected: languages,
     })
+}
+
+/// Check if a file is "noise" that shouldn't be included in domain file lists.
+/// Migrations, templates, static files, and other non-essential files.
+fn is_noise_file(path: &std::path::Path) -> bool {
+    let path_str = path.to_string_lossy();
+    let lower = path_str.to_lowercase();
+
+    // Framework-generated directories
+    if lower.contains("/migrations/")
+        || lower.contains("/templates/")
+        || lower.contains("/static/")
+        || lower.contains("/media/")
+        || lower.contains("/locale/")
+        || lower.contains("/fixtures/")
+    {
+        return true;
+    }
+
+    // Small __init__.py files are boilerplate. But in some Python projects,
+    // __init__.py IS the main module (Flask, general packages), so only filter
+    // if the file is small (< 500 bytes).
+    if lower.ends_with("__init__.py") {
+        if let Ok(metadata) = path.metadata() {
+            return metadata.len() < 500;
+        }
+        return true; // can't read metadata → assume boilerplate
+    }
+
+    false
 }
 
 // Re-export the DomainFileMap type for internal use
