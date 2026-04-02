@@ -115,15 +115,15 @@ fn ensure_claude_available() -> Result<()> {
     }
 
     // Quick auth check: run a trivial prompt to verify authentication
-    let has_api_key = std::env::var("ANTHROPIC_API_KEY").is_ok();
+    let has_api_key = std::env::var("ANTHROPIC_API_KEY")
+        .map(|v| !v.trim().is_empty())
+        .unwrap_or(false);
     let mut test_args = vec![
         "-p",
         "ok",
         "--output-format",
         "json",
         "--no-session-persistence",
-        "--max-turns",
-        "1",
     ];
     if has_api_key {
         test_args.push("--bare");
@@ -172,7 +172,9 @@ fn analyze_domain(domain: &DomainInfo, all_domains: &[DomainInfo]) -> Result<Llm
 /// Uses `--bare` mode (fast, no hooks/CLAUDE.md) when ANTHROPIC_API_KEY is set.
 /// Falls back to normal mode (keychain/OAuth auth) otherwise.
 fn call_claude(prompt: &str) -> Result<LlmAnalysis> {
-    let has_api_key = std::env::var("ANTHROPIC_API_KEY").is_ok();
+    let has_api_key = std::env::var("ANTHROPIC_API_KEY")
+        .map(|v| !v.trim().is_empty())
+        .unwrap_or(false);
     let schema = json_schema();
 
     let mut cmd = Command::new("claude");
@@ -186,8 +188,6 @@ fn call_claude(prompt: &str) -> Result<LlmAnalysis> {
         "--json-schema",
         schema,
         "--no-session-persistence",
-        "--max-turns",
-        "3",
     ]);
 
     if has_api_key {
