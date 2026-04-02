@@ -44,6 +44,27 @@ codefidence status
 
 `init --full` does four things: scans your codebase to bootstrap domain notes, installs Claude Code hooks, patches `CLAUDE.md` (at project root) with wiki instructions, and installs Claude slash commands. Each step is also available separately (`--scan`, `--hooks`).
 
+### AI analysis
+
+The scan uses [Claude Code](https://docs.anthropic.com/en/docs/claude-code) as its analysis backend. It reads your source code and produces real business documentation -- what each domain does, why, and how it interacts with the rest of the codebase.
+
+This requires Claude Code to be installed and authenticated:
+
+```bash
+npm install -g @anthropic-ai/claude-code
+claude  # complete login once
+```
+
+Or set `ANTHROPIC_API_KEY` in your environment for headless/CI usage.
+
+If you want a structural-only bootstrap (no AI, no API key needed):
+
+```bash
+codefidence init --scan-only
+```
+
+This creates domain notes with file lists, detected models, and routes -- but no semantic analysis. You can run a full `init --scan` later once Claude Code is available.
+
 ## Memory items
 
 The core primitive is a **memory item** in a domain note's YAML front matter:
