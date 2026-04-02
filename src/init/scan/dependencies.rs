@@ -167,7 +167,10 @@ mod tests {
     #[test]
     fn matches_with_underscore_normalization() {
         // office365_sync after replace('_', '-') = office365-sync
-        assert!(import_matches_ident("office365-sync.models", "office365-sync"));
+        assert!(import_matches_ident(
+            "office365-sync.models",
+            "office365-sync"
+        ));
     }
 
     #[test]

@@ -116,20 +116,28 @@ fn ensure_claude_available() -> Result<()> {
 
     // Quick auth check: run a trivial prompt to verify authentication
     let has_api_key = std::env::var("ANTHROPIC_API_KEY").is_ok();
-    let mut test_args = vec!["-p", "ok", "--output-format", "json", "--no-session-persistence", "--max-turns", "1"];
+    let mut test_args = vec![
+        "-p",
+        "ok",
+        "--output-format",
+        "json",
+        "--no-session-persistence",
+        "--max-turns",
+        "1",
+    ];
     if has_api_key {
         test_args.push("--bare");
     }
-    let test = Command::new("claude")
-        .args(&test_args)
-        .output();
+    let test = Command::new("claude").args(&test_args).output();
 
     if let Ok(output) = test {
         let stdout = String::from_utf8_lossy(&output.stdout);
         if let Ok(envelope) = serde_json::from_str::<serde_json::Value>(&stdout) {
             if envelope["is_error"].as_bool() == Some(true) {
                 if let Some(result) = envelope["result"].as_str() {
-                    if result.to_lowercase().contains("not logged in") || result.to_lowercase().contains("login") {
+                    if result.to_lowercase().contains("not logged in")
+                        || result.to_lowercase().contains("login")
+                    {
                         bail!(
                             "Claude Code is not authenticated.\n\
                              Run `claude` in a terminal and complete login,\n\
@@ -201,7 +209,10 @@ fn call_claude(prompt: &str) -> Result<LlmAnalysis> {
                 }
             }
             // If we got JSON but no result text, show the full response for debugging
-            bail!("Claude CLI failed with JSON response: {}", stdout.chars().take(500).collect::<String>());
+            bail!(
+                "Claude CLI failed with JSON response: {}",
+                stdout.chars().take(500).collect::<String>()
+            );
         }
 
         // No JSON in stdout, show stderr
@@ -210,7 +221,11 @@ fn call_claude(prompt: &str) -> Result<LlmAnalysis> {
         } else {
             stderr.trim().to_string()
         };
-        bail!("Claude CLI failed (exit code {}): {}", output.status, error_detail);
+        bail!(
+            "Claude CLI failed (exit code {}): {}",
+            output.status,
+            error_detail
+        );
     }
 
     let stdout = String::from_utf8_lossy(&output.stdout);

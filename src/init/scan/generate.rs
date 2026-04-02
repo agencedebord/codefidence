@@ -81,19 +81,32 @@ pub fn generate_domain_overview(
         }
     } else {
         // ─── Structural fallback (no LLM) ───
-        let mut fallback = format!("# {}\n\n## Description\nLLM analysis was not available for this domain. `[inferred]`", title);
+        let mut fallback = format!(
+            "# {}\n\n## Description\nLLM analysis was not available for this domain. `[inferred]`",
+            title
+        );
 
         // Include structural signals so the overview is not completely empty
         if !domain.models.is_empty() {
             fallback.push_str(&format!(
                 "\n\n## Detected models\n{}",
-                domain.models.iter().map(|m| format!("- {}", m)).collect::<Vec<_>>().join("\n")
+                domain
+                    .models
+                    .iter()
+                    .map(|m| format!("- {}", m))
+                    .collect::<Vec<_>>()
+                    .join("\n")
             ));
         }
         if !domain.routes.is_empty() {
             fallback.push_str(&format!(
                 "\n\n## Detected routes\n{}",
-                domain.routes.iter().map(|r| format!("- `{}`", r)).collect::<Vec<_>>().join("\n")
+                domain
+                    .routes
+                    .iter()
+                    .map(|r| format!("- `{}`", r))
+                    .collect::<Vec<_>>()
+                    .join("\n")
             ));
         }
 
