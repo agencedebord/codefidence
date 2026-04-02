@@ -134,7 +134,12 @@ fn init_with_source_files_runs_scan_and_creates_domains() {
     fs::create_dir_all(&billing_dir).unwrap();
     fs::write(billing_dir.join("invoice.ts"), "export class Invoice {}").unwrap();
 
-    cmd_in(&dir).arg("init").arg("--scan").assert().success();
+    // Use --scan-only to avoid requiring Claude Code CLI in test environment
+    cmd_in(&dir)
+        .arg("init")
+        .arg("--scan-only")
+        .assert()
+        .success();
 
     // The scan should have detected the "billing" domain
     assert!(
@@ -211,12 +216,17 @@ fn init_creates_gitattributes_for_generated_files() {
 fn rebuild_regenerates_index() {
     let dir = TempDir::new().unwrap();
 
-    // Init with a domain
-    let billing_dir = dir.path().join("src/services/billing");
-    fs::create_dir_all(&billing_dir).unwrap();
-    fs::write(billing_dir.join("invoice.ts"), "export class Invoice {}").unwrap();
+    // Init without scan (doesn't need API key)
+    cmd_in(&dir).arg("init").assert().success();
 
-    cmd_in(&dir).arg("init").arg("--scan").assert().success();
+    // Create a domain manually
+    let domain_dir = dir.path().join(".wiki/domains/billing");
+    fs::create_dir_all(&domain_dir).unwrap();
+    fs::write(
+        domain_dir.join("_overview.md"),
+        "---\ntitle: Billing\nconfidence: confirmed\nlast_updated: \"2026-03-28\"\nrelated_files: []\n---\n\n# Billing\n",
+    )
+    .unwrap();
 
     // Corrupt _index.md
     fs::write(dir.path().join(".wiki/_index.md"), "CORRUPTED CONTENT").unwrap();
@@ -319,16 +329,17 @@ fn validate_fails_without_wiki() {
 fn rebuild_regenerates_graph_and_index() {
     let dir = TempDir::new().unwrap();
 
-    // Init with scan (create a domain so there is something to rebuild)
-    let billing_dir = dir.path().join("src/services/billing");
-    fs::create_dir_all(&billing_dir).unwrap();
-    fs::write(billing_dir.join("invoice.ts"), "export class Invoice {}").unwrap();
+    // Init without scan (doesn't need API key)
+    cmd_in(&dir).arg("init").assert().success();
 
-    cmd_in(&dir).arg("init").arg("--scan").assert().success();
-
-    // Verify _graph.md was created with content
-    let graph_before = fs::read_to_string(dir.path().join(".wiki/_graph.md")).unwrap();
-    assert!(!graph_before.is_empty());
+    // Create a domain manually so there is something to rebuild
+    let domain_dir = dir.path().join(".wiki/domains/billing");
+    fs::create_dir_all(&domain_dir).unwrap();
+    fs::write(
+        domain_dir.join("_overview.md"),
+        "---\ntitle: Billing\nconfidence: confirmed\nlast_updated: \"2026-03-28\"\nrelated_files: []\n---\n\n# Billing\n",
+    )
+    .unwrap();
 
     // Empty the graph file
     fs::write(dir.path().join(".wiki/_graph.md"), "").unwrap();

@@ -1,6 +1,5 @@
+pub mod analyze;
 pub mod candidates;
-#[cfg(feature = "enrich")]
-pub mod enrich;
 pub mod hooks;
 #[cfg(feature = "notion")]
 pub mod notion;
@@ -8,6 +7,7 @@ pub mod patch_claude;
 pub mod scaffold;
 pub mod scan;
 
+use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 
@@ -21,10 +21,10 @@ pub async fn run(
     full: bool,
     from_notion: Option<String>,
     resume: bool,
-    do_enrich: bool,
+    scan_only: bool,
 ) -> Result<()> {
-    // --full enables all opt-in steps (but NOT --enrich, which requires an API key)
-    let do_scan = scan || full || from_notion.is_some();
+    // --full enables all opt-in steps
+    let do_scan = scan || scan_only || full || from_notion.is_some();
     let do_hooks = hooks || full;
     let do_claude_integration = full;
 
@@ -33,27 +33,7 @@ pub async fn run(
     }
 
     if do_scan {
-        let active_domains = run_scan()?;
-
-        if do_enrich && !active_domains.is_empty() {
-            #[cfg(feature = "enrich")]
-            {
-                ui::step("Enriching domains with LLM suggestions...");
-                if let Err(e) = enrich::run(&active_domains, Path::new(".wiki")).await {
-                    ui::warn(&format!(
-                        "LLM enrichment failed: {}. Continuing without enrichment.",
-                        e
-                    ));
-                }
-            }
-
-            #[cfg(not(feature = "enrich"))]
-            {
-                anyhow::bail!(
-                    "LLM enrichment is not enabled. Rebuild with: cargo install codefidence --features enrich"
-                );
-            }
-        }
+        run_scan(scan_only)?;
     }
 
     if do_hooks {
@@ -100,16 +80,16 @@ pub async fn run(
     Ok(())
 }
 
-/// Run the codebase scan and populate the wiki with detected domains.
-/// Returns the list of active domains (with signal) for downstream enrichment.
-fn run_scan() -> Result<Vec<scan::DomainInfo>> {
+/// Run the codebase scan, analyze with Claude, and populate the wiki.
+/// If `scan_only` is true, skip LLM analysis and generate structural-only overviews.
+fn run_scan(scan_only: bool) -> Result<()> {
     let result = scan::run()?;
 
     if result.domains.is_empty() {
         ui::info(
             "No domains detected. You can add them manually with `codefidence add domain <name>`.",
         );
-        return Ok(Vec::new());
+        return Ok(());
     }
 
     // Filter out domains with no useful signals
@@ -132,8 +112,20 @@ fn run_scan() -> Result<Vec<scan::DomainInfo>> {
         ui::info(
             "No domains with useful signals found. You can add context manually with `codefidence add context`.",
         );
-        return Ok(Vec::new());
+        return Ok(());
     }
+
+    // ─── LLM analysis (the core of the product) ───
+    let analysis_map: HashMap<String, analyze::LlmAnalysis> = if scan_only {
+        ui::info(
+            "Structural scan only (--scan-only). Run without --scan-only for full Claude AI analysis.",
+        );
+        HashMap::new()
+    } else {
+        ui::step("Analyzing domains with Claude...");
+        let analyses = analyze::run(&active_domains, &active_domains, Path::new(".wiki"))?;
+        analyses.into_iter().collect()
+    };
 
     let date = chrono::Utc::now().format("%Y-%m-%d").to_string();
 
@@ -148,7 +140,8 @@ fn run_scan() -> Result<Vec<scan::DomainInfo>> {
             )
         })?;
 
-        let overview_content = scan::generate_domain_overview(domain, &active_domains);
+        let analysis = analysis_map.get(&domain.name);
+        let overview_content = scan::generate_domain_overview(domain, &active_domains, analysis);
         let overview_path = domain_dir.join("_overview.md");
         fs::write(&overview_path, &overview_content)
             .with_context(|| format!("Failed to write {}", overview_path.display()))?;
@@ -170,7 +163,7 @@ fn run_scan() -> Result<Vec<scan::DomainInfo>> {
     fs::write(".wiki/_needs-review.md", &needs_review_content)
         .context("Failed to write _needs-review.md")?;
 
-    // Generate memory candidates
+    // Generate memory candidates (from both heuristics and LLM)
     ui::step("Generating memory candidates...");
     let candidate_list = candidates::generate(&active_domains);
     if candidate_list.is_empty() {
@@ -198,7 +191,7 @@ fn run_scan() -> Result<Vec<scan::DomainInfo>> {
         ));
     }
 
-    Ok(active_domains)
+    Ok(())
 }
 
 /// Merge Notion domain data into existing wiki notes.

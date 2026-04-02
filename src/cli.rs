@@ -44,9 +44,9 @@ enum Commands {
         #[arg(long)]
         resume: bool,
 
-        /// Enrich domain overviews with LLM-suggested descriptions and behaviors
+        /// Structural scan only (no Claude AI analysis)
         #[arg(long)]
-        enrich: bool,
+        scan_only: bool,
     },
 
     /// Show wiki status and health summary
@@ -256,8 +256,8 @@ pub async fn run() -> Result<()> {
             full,
             from_notion,
             resume,
-            enrich,
-        } => init::run(scan, hooks, full, from_notion, resume, enrich).await,
+            scan_only,
+        } => init::run(scan, hooks, full, from_notion, resume, scan_only).await,
 
         Commands::Status => wiki::status::run(),
 

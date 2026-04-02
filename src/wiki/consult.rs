@@ -152,6 +152,9 @@ fn print_domain_note(note: &WikiNote) {
         Confidence::Confirmed | Confidence::Verified => {
             println!("  {}", style(&confidence_str).green());
         }
+        Confidence::LlmAnalyzed => {
+            println!("  {}", style(&confidence_str).yellow());
+        }
         Confidence::SeenInCode => {
             println!("  {}", style(&confidence_str).cyan());
         }

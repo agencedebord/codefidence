@@ -89,7 +89,6 @@ const BLUE: (u8, u8, u8) = (52, 152, 219); // gradient end for titles
 const CYAN_COLOR: (u8, u8, u8) = (26, 188, 216);
 #[cfg(feature = "notion")]
 const ROSE: (u8, u8, u8) = (224, 102, 153);
-#[cfg(feature = "enrich")]
 const AMBER: (u8, u8, u8) = (255, 191, 0);
 
 // ─── Public output functions ───
@@ -231,9 +230,8 @@ pub fn notion_progress(msg: &str, progress: f64) {
     );
 }
 
-/// Print a progress bar for LLM enrichment operations (amber → cyan gradient).
-#[cfg(feature = "enrich")]
-pub fn enrich_progress(msg: &str, progress: f64) {
+/// Print a progress bar for LLM analysis operations (amber → cyan gradient).
+pub fn llm_progress(msg: &str, progress: f64) {
     let bar = gradient_bar(progress, 30, AMBER, CYAN_COLOR);
     let pct = (progress * 100.0).round() as u32;
     eprintln!(

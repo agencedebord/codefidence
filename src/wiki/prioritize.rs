@@ -19,9 +19,10 @@ pub fn type_priority(t: &MemoryItemType) -> u8 {
 pub fn confidence_priority(c: &Confidence) -> u8 {
     match c {
         Confidence::Confirmed | Confidence::Verified => 0,
-        Confidence::SeenInCode => 1,
-        Confidence::Inferred => 2,
-        Confidence::NeedsValidation => 3,
+        Confidence::LlmAnalyzed => 1,
+        Confidence::SeenInCode => 2,
+        Confidence::Inferred => 3,
+        Confidence::NeedsValidation => 4,
     }
 }
 

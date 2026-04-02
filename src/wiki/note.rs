@@ -14,6 +14,7 @@ use serde::{Deserialize, Serialize};
 pub enum Confidence {
     Confirmed,
     Verified,
+    LlmAnalyzed,
     SeenInCode,
     #[default]
     Inferred,
@@ -25,6 +26,7 @@ impl fmt::Display for Confidence {
         match self {
             Confidence::Confirmed => write!(f, "confirmed"),
             Confidence::Verified => write!(f, "verified"),
+            Confidence::LlmAnalyzed => write!(f, "llm-analyzed"),
             Confidence::SeenInCode => write!(f, "seen-in-code"),
             Confidence::Inferred => write!(f, "inferred"),
             Confidence::NeedsValidation => write!(f, "needs-validation"),

@@ -378,6 +378,7 @@ fn parse_confidence(s: &str) -> Result<Confidence> {
     match s {
         "confirmed" => Ok(Confidence::Confirmed),
         "verified" => Ok(Confidence::Verified),
+        "llm-analyzed" => Ok(Confidence::LlmAnalyzed),
         "seen-in-code" => Ok(Confidence::SeenInCode),
         "inferred" => Ok(Confidence::Inferred),
         "needs-validation" => Ok(Confidence::NeedsValidation),

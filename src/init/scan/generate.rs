@@ -1,82 +1,124 @@
 use std::collections::HashSet;
 
+use crate::init::analyze::LlmAnalysis;
 use crate::wiki::common::capitalize;
 
 use super::DomainInfo;
 
 /// Generate a markdown overview for a domain.
-/// Only includes sections that have actual content — no empty placeholders.
-pub fn generate_domain_overview(domain: &DomainInfo, all_domains: &[DomainInfo]) -> String {
+/// When `analysis` is provided (LLM mode), the output is real documentation.
+/// When `analysis` is None (should not happen in normal flow), falls back to structural stub.
+pub fn generate_domain_overview(
+    domain: &DomainInfo,
+    all_domains: &[DomainInfo],
+    analysis: Option<&LlmAnalysis>,
+) -> String {
     let date = chrono::Utc::now().format("%Y-%m-%d").to_string();
-    let title = domain
-        .name
-        .chars()
-        .next()
-        .map(|c| c.to_uppercase().to_string() + &domain.name[1..])
-        .unwrap_or_default();
+    let title = capitalize(&domain.name);
 
     let related_files_section = format_related_files(&domain.files);
+
+    let confidence = if analysis.is_some() {
+        "llm-analyzed"
+    } else {
+        "inferred"
+    };
 
     let mut sections = Vec::new();
 
     // Front matter
     sections.push(format!(
-        "---\ndomain: {}\nconfidence: inferred\nlast_updated: {}\n{}\n---",
-        domain.name, date, related_files_section
+        "---\ndomain: {}\nconfidence: {}\nlast_updated: {}\n{}\n---",
+        domain.name, confidence, date, related_files_section
     ));
 
-    // Title + honest structural description
-    sections.push(format!(
-        "# {}\n\n## Description\n{} `[inferred]`",
-        title,
-        domain.structural_description()
-    ));
+    if let Some(analysis) = analysis {
+        // ─── LLM-first output (the default) ───
 
-    // Data models (only if non-empty)
-    if let Some(s) = format_list_section_opt("Data models", &domain.models, |m| {
-        format!("- {} `[seen-in-code]`", m)
-    }) {
-        sections.push(s);
+        // Title + description
+        sections.push(format!(
+            "# {}\n\n## What this domain does\n{} `[llm-analyzed]`",
+            title, analysis.description
+        ));
+
+        // Key behaviors
+        if !analysis.behaviors.is_empty() {
+            let list: String = analysis
+                .behaviors
+                .iter()
+                .map(|b| format!("- **{}**: {} `[llm-analyzed]`", b.summary, b.detail))
+                .collect::<Vec<_>>()
+                .join("\n");
+            sections.push(format!("## Key behaviors\n{}", list));
+        }
+
+        // Domain interactions
+        if !analysis.interactions.is_empty() {
+            let list: String = analysis
+                .interactions
+                .iter()
+                .map(|i| {
+                    format!(
+                        "- **{}**: {} `[llm-analyzed]`",
+                        capitalize(&i.target_domain),
+                        i.description
+                    )
+                })
+                .collect::<Vec<_>>()
+                .join("\n");
+            sections.push(format!("## Domain interactions\n{}", list));
+        }
+
+        // Gotchas and edge cases
+        if !analysis.gotchas.is_empty() {
+            let list: String = analysis
+                .gotchas
+                .iter()
+                .map(|g| format!("- {} `[llm-analyzed]`", g))
+                .collect::<Vec<_>>()
+                .join("\n");
+            sections.push(format!("## Gotchas and edge cases\n{}", list));
+        }
+    } else {
+        // ─── Structural fallback (no LLM) ───
+        let mut fallback = format!("# {}\n\n## Description\nLLM analysis was not available for this domain. `[inferred]`", title);
+
+        // Include structural signals so the overview is not completely empty
+        if !domain.models.is_empty() {
+            fallback.push_str(&format!(
+                "\n\n## Detected models\n{}",
+                domain.models.iter().map(|m| format!("- {}", m)).collect::<Vec<_>>().join("\n")
+            ));
+        }
+        if !domain.routes.is_empty() {
+            fallback.push_str(&format!(
+                "\n\n## Detected routes\n{}",
+                domain.routes.iter().map(|r| format!("- `{}`", r)).collect::<Vec<_>>().join("\n")
+            ));
+        }
+
+        sections.push(fallback);
     }
 
-    // API routes (only if non-empty)
-    if let Some(s) = format_list_section_opt("API routes", &domain.routes, |r| {
-        format!("- {} `[seen-in-code]`", r)
-    }) {
-        sections.push(s);
-    }
-
-    // Behavior candidates (deterministic inference from signals)
-    if let Some(s) = generate_behavior_candidates(domain) {
-        sections.push(s);
-    }
-
-    // Notes from code (TODO/FIXME/HACK/NOTE)
+    // Notes from code (TODO/FIXME/HACK/NOTE) — always included if present
     if let Some(s) =
         format_list_section_opt("Notes from code", &domain.comments, |c| format!("- {}", c))
     {
         sections.push(s);
     }
 
-    // Dependencies (only if non-empty)
+    // Dependencies (always included if present)
     if !domain.dependencies.is_empty() {
         let deps_list: String = domain
             .dependencies
             .iter()
-            .map(|d| {
-                format!(
-                    "- [{}](../{d}/_overview.md) — imports from {} module",
-                    capitalize(d),
-                    d,
-                    d = d
-                )
-            })
+            .map(|d| format!("- [{}](../{d}/_overview.md)", capitalize(d), d = d))
             .collect::<Vec<_>>()
             .join("\n");
         sections.push(format!("## Dependencies\n{}", deps_list));
     }
 
-    // Referenced by (only if non-empty)
+    // Referenced by (always included if present)
     let referenced_by: Vec<&DomainInfo> = all_domains
         .iter()
         .filter(|d| d.name != domain.name && d.dependencies.contains(&domain.name))
@@ -97,64 +139,7 @@ pub fn generate_domain_overview(domain: &DomainInfo, all_domains: &[DomainInfo])
         sections.push(format!("## Referenced by\n{}", refs_list));
     }
 
-    // Test coverage (only if non-empty)
-    if let Some(s) =
-        format_list_section_opt("Test coverage", &domain.test_files, |t| format!("- {}", t))
-    {
-        sections.push(s);
-    }
-
     sections.join("\n\n")
-}
-
-/// Generate behavior candidates from deterministic rules.
-/// Each candidate is tagged [needs-validation] — these are proposals, not facts.
-fn generate_behavior_candidates(domain: &DomainInfo) -> Option<String> {
-    let mut candidates: Vec<String> = Vec::new();
-
-    // routes + models = API + data layer
-    if !domain.routes.is_empty() && !domain.models.is_empty() {
-        candidates.push(format!(
-            "Exposes API endpoints and defines data models for {} `[needs-validation]`",
-            domain.name
-        ));
-    }
-
-    // models + tests = validated data layer
-    if !domain.models.is_empty() && !domain.test_files.is_empty() {
-        candidates.push(format!(
-            "Data models for {} have test coverage `[needs-validation]`",
-            domain.name
-        ));
-    }
-
-    // routes + dependencies = orchestration layer
-    if !domain.routes.is_empty() && !domain.dependencies.is_empty() {
-        let dep_names = domain.dependencies.join(", ");
-        candidates.push(format!(
-            "Orchestrates requests across {} `[needs-validation]`",
-            dep_names
-        ));
-    }
-
-    // heavy dependency count = integration hub
-    if domain.dependencies.len() >= 3 {
-        candidates.push(format!(
-            "Acts as an integration hub connecting {} other domains `[needs-validation]`",
-            domain.dependencies.len()
-        ));
-    }
-
-    if candidates.is_empty() {
-        None
-    } else {
-        let list = candidates
-            .iter()
-            .map(|c| format!("- {}", c))
-            .collect::<Vec<_>>()
-            .join("\n");
-        Some(format!("## Behavior candidates\n{}", list))
-    }
 }
 
 /// Generate a Mermaid dependency graph.
@@ -218,10 +203,8 @@ pub fn generate_index(domains: &[DomainInfo], date: &str) -> String {
             .iter()
             .map(|d| {
                 format!(
-                    "- [{}](domains/{d}/_overview.md) — {} files, {} models `[inferred]`",
+                    "- [{}](domains/{d}/_overview.md)",
                     capitalize(&d.name),
-                    d.files.len(),
-                    d.models.len(),
                     d = d.name,
                 )
             })
@@ -305,6 +288,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::init::analyze::{Behavior, Interaction, LlmAnalysis, LlmCandidate};
 
     fn domain_with_signal() -> DomainInfo {
         DomainInfo {
@@ -321,38 +305,79 @@ mod tests {
         }
     }
 
-    #[test]
-    fn generate_overview_contains_domain_name_and_structural_desc() {
-        let domain = domain_with_signal();
-        let overview = generate_domain_overview(&domain, std::slice::from_ref(&domain));
-        assert!(overview.contains("Billing"));
-        assert!(overview.contains("Invoice"));
-        assert!(overview.contains("This domain contains"));
-        assert!(overview.contains("[inferred]"));
+    fn sample_analysis() -> LlmAnalysis {
+        LlmAnalysis {
+            description:
+                "Handles billing operations including invoice creation and payment processing."
+                    .to_string(),
+            behaviors: vec![Behavior {
+                summary: "Invoice validation".to_string(),
+                detail: "Validates invoice amounts are positive before persisting.".to_string(),
+            }],
+            interactions: vec![Interaction {
+                target_domain: "users".to_string(),
+                description: "Fetches customer billing profiles.".to_string(),
+            }],
+            gotchas: vec!["Refunds older than 30 days silently fail.".to_string()],
+            memory_candidates: vec![LlmCandidate {
+                type_: "business_rule".to_string(),
+                text: "Invoices expire after 30 days".to_string(),
+            }],
+        }
     }
 
     #[test]
-    fn generate_overview_no_key_behaviors_placeholder() {
+    fn generate_overview_with_analysis_contains_real_docs() {
         let domain = domain_with_signal();
-        let overview = generate_domain_overview(&domain, std::slice::from_ref(&domain));
+        let analysis = sample_analysis();
+        let overview =
+            generate_domain_overview(&domain, std::slice::from_ref(&domain), Some(&analysis));
+
+        assert!(overview.contains("## What this domain does"));
+        assert!(overview.contains("Handles billing operations"));
+        assert!(overview.contains("[llm-analyzed]"));
+        assert!(overview.contains("## Key behaviors"));
+        assert!(overview.contains("Invoice validation"));
+        assert!(overview.contains("## Domain interactions"));
+        assert!(overview.contains("Users"));
+        assert!(overview.contains("## Gotchas and edge cases"));
+        assert!(overview.contains("Refunds older than 30 days"));
+        assert!(overview.contains("confidence: llm-analyzed"));
+    }
+
+    #[test]
+    fn generate_overview_with_analysis_no_inventory() {
+        let domain = domain_with_signal();
+        let analysis = sample_analysis();
+        let overview =
+            generate_domain_overview(&domain, std::slice::from_ref(&domain), Some(&analysis));
+
         assert!(
-            !overview.contains("Key behaviors"),
-            "Should not contain Key behaviors section"
+            !overview.contains("## Data models"),
+            "Should not contain model inventory"
         );
         assert!(
-            !overview.contains("_To be documented._"),
-            "Should not contain placeholder text"
+            !overview.contains("## API routes"),
+            "Should not contain route inventory"
+        );
+        assert!(
+            !overview.contains("## Behavior candidates"),
+            "Should not contain mechanical behavior candidates"
+        );
+        assert!(
+            !overview.contains("## Test coverage"),
+            "Should not contain test file inventory"
         );
     }
 
     #[test]
-    fn generate_overview_no_generic_description() {
+    fn generate_overview_without_analysis_fallback() {
         let domain = domain_with_signal();
-        let overview = generate_domain_overview(&domain, std::slice::from_ref(&domain));
-        assert!(
-            !overview.contains("Auto-generated from codebase scan"),
-            "Should not contain generic description"
-        );
+        let overview = generate_domain_overview(&domain, std::slice::from_ref(&domain), None);
+
+        assert!(overview.contains("confidence: inferred"));
+        assert!(overview.contains("LLM analysis was not available"));
+        assert!(!overview.contains("[llm-analyzed]"));
     }
 
     #[test]
@@ -364,109 +389,93 @@ mod tests {
             models: vec![],
             routes: vec![],
             comments: vec![],
-            test_files: vec!["tests/utils.test.ts".to_string()],
+            test_files: vec![],
         };
-        let overview = generate_domain_overview(&domain, std::slice::from_ref(&domain));
+        let analysis = LlmAnalysis {
+            description: "Utility functions.".to_string(),
+            behaviors: vec![],
+            interactions: vec![],
+            gotchas: vec![],
+            memory_candidates: vec![],
+        };
+        let overview =
+            generate_domain_overview(&domain, std::slice::from_ref(&domain), Some(&analysis));
+
+        assert!(overview.contains("## What this domain does"));
         assert!(
-            !overview.contains("## Data models"),
-            "Empty models section should be omitted"
+            !overview.contains("## Key behaviors"),
+            "Empty behaviors section should be omitted"
         );
         assert!(
-            !overview.contains("## API routes"),
-            "Empty routes section should be omitted"
+            !overview.contains("## Domain interactions"),
+            "Empty interactions section should be omitted"
+        );
+        assert!(
+            !overview.contains("## Gotchas"),
+            "Empty gotchas section should be omitted"
         );
         assert!(
             !overview.contains("## Dependencies"),
             "Empty dependencies section should be omitted"
         );
-        assert!(
-            !overview.contains("## Referenced by"),
-            "Empty referenced by section should be omitted"
-        );
-        assert!(
-            !overview.contains("_None detected._"),
-            "Should not contain 'None detected' placeholders"
-        );
-        // Test coverage should still be present
-        assert!(overview.contains("## Test coverage"));
     }
 
     #[test]
-    fn generate_overview_includes_populated_sections() {
-        let domain = DomainInfo {
+    fn generate_overview_includes_dependencies_and_refs() {
+        let billing = DomainInfo {
             name: "billing".to_string(),
             files: vec!["src/billing/invoice.ts".to_string()],
             dependencies: vec!["users".to_string()],
-            models: vec!["Invoice".to_string()],
-            routes: vec!["GET /invoices".to_string()],
+            models: vec![],
+            routes: vec![],
             comments: vec!["[TODO] Fix calculation".to_string()],
-            test_files: vec!["tests/billing.test.ts".to_string()],
+            test_files: vec![],
         };
-        let overview = generate_domain_overview(&domain, std::slice::from_ref(&domain));
-        assert!(overview.contains("## Data models"));
-        assert!(overview.contains("## API routes"));
+        let users = DomainInfo {
+            name: "users".to_string(),
+            files: vec!["src/users/mod.ts".to_string()],
+            dependencies: vec![],
+            models: vec![],
+            routes: vec![],
+            comments: vec![],
+            test_files: vec![],
+        };
+        let all = vec![billing.clone(), users];
+        let analysis = LlmAnalysis {
+            description: "Billing domain.".to_string(),
+            behaviors: vec![],
+            interactions: vec![],
+            gotchas: vec![],
+            memory_candidates: vec![],
+        };
+        let overview = generate_domain_overview(&billing, &all, Some(&analysis));
+
         assert!(overview.contains("## Dependencies"));
+        assert!(overview.contains("[Users](../users/_overview.md)"));
         assert!(overview.contains("## Notes from code"));
-        assert!(overview.contains("## Test coverage"));
         assert!(overview.contains("[TODO] Fix calculation"));
     }
 
     #[test]
-    fn generate_overview_behavior_candidates_routes_and_models() {
-        let domain = DomainInfo {
+    fn generate_index_clean_format() {
+        let domains = vec![DomainInfo {
             name: "billing".to_string(),
-            files: vec!["src/billing/invoice.ts".to_string()],
+            files: vec!["a.ts".to_string(), "b.ts".to_string()],
             dependencies: vec![],
             models: vec!["Invoice".to_string()],
-            routes: vec!["GET /invoices".to_string()],
-            comments: vec![],
-            test_files: vec![],
-        };
-        let overview = generate_domain_overview(&domain, std::slice::from_ref(&domain));
-        assert!(
-            overview.contains("## Behavior candidates"),
-            "Should have behavior candidates when routes + models"
-        );
-        assert!(overview.contains("[needs-validation]"));
-        assert!(overview.contains("Exposes API endpoints"));
-    }
-
-    #[test]
-    fn generate_overview_no_behavior_candidates_without_signal() {
-        let domain = DomainInfo {
-            name: "utils".to_string(),
-            files: vec!["src/utils/helpers.ts".to_string()],
-            dependencies: vec![],
-            models: vec![],
-            routes: vec![],
-            comments: vec![],
-            test_files: vec!["tests/utils.test.ts".to_string()],
-        };
-        let overview = generate_domain_overview(&domain, std::slice::from_ref(&domain));
-        assert!(
-            !overview.contains("## Behavior candidates"),
-            "Should not have behavior candidates without enough signal"
-        );
-    }
-
-    #[test]
-    fn generate_behavior_candidates_integration_hub() {
-        let domain = DomainInfo {
-            name: "api".to_string(),
-            files: vec!["src/api/index.ts".to_string()],
-            dependencies: vec![
-                "billing".to_string(),
-                "users".to_string(),
-                "auth".to_string(),
-            ],
-            models: vec![],
             routes: vec![],
             comments: vec![],
             test_files: vec![],
-        };
-        let result = generate_behavior_candidates(&domain);
-        assert!(result.is_some());
-        assert!(result.unwrap().contains("integration hub"));
+        }];
+
+        let index = generate_index(&domains, "2025-01-01");
+        assert!(index.contains("Billing"));
+        assert!(index.contains("domains/billing/_overview.md"));
+        // No file/model counts in index anymore
+        assert!(
+            !index.contains("2 files"),
+            "Index should not contain file counts"
+        );
     }
 
     #[test]
@@ -511,24 +520,6 @@ mod tests {
 
         let graph = generate_graph(&domains);
         assert!(graph.contains("billing --> users"));
-    }
-
-    #[test]
-    fn generate_index_contains_domain_entries() {
-        let domains = vec![DomainInfo {
-            name: "billing".to_string(),
-            files: vec!["a.ts".to_string(), "b.ts".to_string()],
-            dependencies: vec![],
-            models: vec!["Invoice".to_string()],
-            routes: vec![],
-            comments: vec![],
-            test_files: vec![],
-        }];
-
-        let index = generate_index(&domains, "2025-01-01");
-        assert!(index.contains("Billing"));
-        assert!(index.contains("2 files"));
-        assert!(index.contains("1 models"));
     }
 
     #[test]

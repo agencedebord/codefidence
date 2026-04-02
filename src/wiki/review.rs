@@ -274,6 +274,7 @@ fn display_domain(note: &WikiNote, current: usize, total: usize) {
         for (i, item) in note.memory_items.iter().enumerate() {
             let confidence_marker = match &item.confidence {
                 Confidence::Confirmed | Confidence::Verified => style("✓").green().to_string(),
+                Confidence::LlmAnalyzed => style("⚠").yellow().to_string(),
                 Confidence::Inferred => style("⚠").yellow().to_string(),
                 Confidence::NeedsValidation => style("⚠").red().to_string(),
                 Confidence::SeenInCode => style("~").cyan().to_string(),
@@ -321,6 +322,7 @@ fn style_confidence(confidence: &Confidence) -> console::StyledObject<String> {
     let text = confidence.to_string();
     match confidence {
         Confidence::Confirmed | Confidence::Verified => style(text).green(),
+        Confidence::LlmAnalyzed => style(text).yellow(),
         Confidence::SeenInCode => style(text).cyan(),
         Confidence::Inferred => style(text).yellow(),
         Confidence::NeedsValidation => style(text).red(),
