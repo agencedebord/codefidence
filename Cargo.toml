@@ -59,6 +59,9 @@ regex = "1"
 # Error handling
 anyhow = "1"
 
+# HTTP client (update check)
+ureq = "2"
+
 # Date/time
 chrono = { version = "0.4", default-features = false, features = ["clock", "serde"] }
 

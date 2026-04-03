@@ -2,6 +2,7 @@ mod cli;
 mod i18n;
 mod init;
 mod ui;
+mod update_check;
 mod verbosity;
 mod wiki;
 

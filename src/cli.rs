@@ -223,6 +223,9 @@ enum Commands {
     /// Remove all codefidence hooks (Claude Code + git)
     UninstallHooks,
 
+    /// Check for available updates
+    CheckUpdate,
+
     /// Handle git hook events (used internally by post-merge, post-rewrite, post-checkout, etc.)
     GitHook {
         /// Git hook event type: post-merge, post-rewrite, post-checkout, post-commit
@@ -275,6 +278,8 @@ enum AddCommands {
 pub async fn run() -> Result<()> {
     let cli = Cli::parse();
     crate::verbosity::set(cli.verbose);
+
+    let is_git_hook = matches!(cli.command, Commands::GitHook { .. });
 
     match cli.command {
         Commands::Init {
@@ -409,6 +414,12 @@ pub async fn run() -> Result<()> {
             Ok(())
         }
 
+        Commands::CheckUpdate => {
+            let msg = crate::update_check::check_force()?;
+            eprintln!("{}", msg);
+            Ok(())
+        }
+
         Commands::InstallHooks => {
             let cwd = std::env::current_dir()?;
             init::hooks::install(&cwd)?;
@@ -435,5 +446,15 @@ pub async fn run() -> Result<()> {
             branch_flag,
             rewrite_cause.as_deref(),
         ),
+    }?;
+
+    // Post-run update check (skip for git hooks — stderr is swallowed anyway)
+    if !is_git_hook {
+        if let Some(msg) = crate::update_check::check_background() {
+            eprintln!();
+            eprintln!("{}", msg);
+        }
     }
+
+    Ok(())
 }

@@ -80,6 +80,9 @@ pub fn run_from_stdin() -> Result<()> {
         crate::wiki::git_hook::consume_drift_pending(&wiki_dir);
     }
 
+    // Update check
+    crate::update_check::append_to_hook_context(&mut context_parts);
+
     // Normal context resolution
     if let Some(ctx) = resolve_context(file_path, &wiki_dir, project_root)? {
         context_parts.push(ctx);

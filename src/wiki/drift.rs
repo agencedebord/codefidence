@@ -109,9 +109,17 @@ pub fn run_from_stdin() -> Result<()> {
 
     let warnings = detect(file_path, &wiki_dir, project_root)?;
 
+    let mut parts: Vec<String> = Vec::new();
+
     if !warnings.is_empty() {
+        parts.push(format_warnings(&warnings));
+    }
+
+    crate::update_check::append_to_hook_context(&mut parts);
+
+    if !parts.is_empty() {
         let output = HookOutput {
-            additional_context: format_warnings(&warnings),
+            additional_context: parts.join("\n\n"),
         };
         println!("{}", serde_json::to_string(&output)?);
     }
