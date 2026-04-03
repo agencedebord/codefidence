@@ -2,7 +2,7 @@
 title: Scan overview
 domain: scan
 confidence: seen-in-code
-last_updated: "2026-03-30"
+last_updated: "2026-04-03"
 related_files:
   - src/init/scan/mod.rs
   - src/init/scan/structure.rs
@@ -47,6 +47,30 @@ memory_items:
         line: 26
     status: active
     last_reviewed: "2026-03-30"
+  - id: scan-004
+    type: decision
+    text: "Large app directories (>= 4 sub-packages AND >= 30 recursive source files) are automatically split into sub-domains. This prevents monolithic domains on projects like Django where a single top-level package contains many rich sub-packages (forms, db, middleware, etc.)"
+    confidence: seen-in-code
+    related_files:
+      - src/init/scan/structure.rs
+    sources:
+      - kind: file
+        ref: src/init/scan/structure.rs
+        line: 155
+    status: active
+    last_reviewed: "2026-04-03"
+  - id: scan-005
+    type: business_rule
+    text: "Sub-domain naming uses the simple sub-package name (e.g. 'forms' not 'django-forms'). If a name collision occurs with another domain, the sub-domain is prefixed with the parent name (e.g. 'django-utils')"
+    confidence: seen-in-code
+    related_files:
+      - src/init/scan/structure.rs
+    sources:
+      - kind: file
+        ref: src/init/scan/structure.rs
+        line: 483
+    status: active
+    last_reviewed: "2026-04-03"
 ---
 
 # Scan
@@ -58,6 +82,7 @@ Scans a codebase to discover domains, analyze dependencies, and extract structur
 ## Key behaviors
 
 - Pass 1 (structure): walks the filesystem respecting .gitignore, skips extra directories (.wiki, node_modules, target, etc.), assigns files to domains based on parent directory patterns
+- Top-level app directories detected via `__init__.py` or ≥3 source files; large ones (≥4 sub-packages AND ≥30 source files) are automatically split into sub-domains
 - Domain names are extracted by finding a recognized parent dir (e.g. `services/`) and taking the next path component as the domain name
 - Next.js route groups like `(dashboard)` are skipped when extracting domain names
 - Singular/plural domain duplicates are merged (e.g. "user" + "users" -> "users", "entity" + "entities" -> "entities")
