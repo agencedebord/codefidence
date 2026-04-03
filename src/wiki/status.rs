@@ -150,9 +150,49 @@ pub fn run() -> Result<()> {
     }
 
     // ─── Alerts ───
-    let has_alerts = !stale_notes.is_empty() || open_questions > 0 || needs_validation > 0;
+    let drift_pending = crate::wiki::git_hook::read_drift_pending(&wiki_dir);
+    let has_alerts = !stale_notes.is_empty()
+        || open_questions > 0
+        || needs_validation > 0
+        || drift_pending.is_some();
+
     if has_alerts {
         ui::header("Alerts");
+
+        // Git drift pending
+        if let Some(pending) = &drift_pending {
+            let ts = pending
+                .timestamp
+                .split('T')
+                .next()
+                .unwrap_or(&pending.timestamp);
+            ui::warn(&format!(
+                "Git drift pending: {} domain(s) may need review after {} ({})",
+                pending.domains.len(),
+                pending.event.replace("post-", ""),
+                ts,
+            ));
+            if !pending.domains.is_empty() {
+                eprintln!(
+                    "{}    Domains: {}",
+                    style("│").dim(),
+                    style(pending.domains.join(", ")).yellow()
+                );
+            }
+            if !pending.untracked_files.is_empty() {
+                eprintln!(
+                    "{}    {} new file(s) not covered by wiki",
+                    style("│").dim(),
+                    style(pending.untracked_files.len()).yellow()
+                );
+            }
+            eprintln!(
+                "{}    Run: {}",
+                style("│").dim(),
+                style("codefidence check-diff").cyan()
+            );
+        }
+
         if !stale_notes.is_empty() {
             ui::warn(&format!(
                 "{} stale note(s) — not updated in 30+ days",

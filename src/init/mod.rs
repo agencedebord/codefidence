@@ -1,5 +1,6 @@
 pub mod analyze;
 pub mod candidates;
+pub mod git_hooks;
 pub mod hooks;
 #[cfg(feature = "notion")]
 pub mod notion;
@@ -73,7 +74,12 @@ pub async fn run(
     if do_hooks {
         ui::step("Installing Claude Code hooks...");
         if let Err(e) = hooks::install(Path::new(".")) {
-            ui::warn(&format!("Failed to install hooks: {}", e));
+            ui::warn(&format!("Failed to install Claude hooks: {}", e));
+        }
+
+        ui::step("Installing git hooks...");
+        if let Err(e) = git_hooks::install(Path::new(".")) {
+            ui::warn(&format!("Failed to install git hooks: {}", e));
         }
     }
 

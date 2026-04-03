@@ -53,9 +53,41 @@ pub fn run_from_stdin() -> Result<()> {
         None => return Ok(()),
     };
 
+    let mut context_parts: Vec<String> = Vec::new();
+
+    // Check for drift-pending from git hooks
+    if let Some(pending) = crate::wiki::git_hook::read_drift_pending(&wiki_dir) {
+        let mut warning = format!(
+            "\u{26a0} Wiki drift detected from recent git {}.",
+            pending.event.replace("post-", "")
+        );
+        if !pending.domains.is_empty() {
+            warning.push_str(&format!(
+                " Domains potentially affected: {}.",
+                pending.domains.join(", ")
+            ));
+        }
+        if !pending.untracked_files.is_empty() {
+            warning.push_str(&format!(
+                " New files not covered by wiki: {}. Consider adding them to existing domains or creating new ones.",
+                pending.untracked_files.join(", ")
+            ));
+        }
+        warning.push_str(" Consider running `codefidence check-diff` before making changes.");
+        context_parts.push(warning);
+
+        // Consume the marker
+        crate::wiki::git_hook::consume_drift_pending(&wiki_dir);
+    }
+
+    // Normal context resolution
     if let Some(ctx) = resolve_context(file_path, &wiki_dir, project_root)? {
+        context_parts.push(ctx);
+    }
+
+    if !context_parts.is_empty() {
         let output = HookOutput {
-            additional_context: ctx,
+            additional_context: context_parts.join("\n\n"),
         };
         println!("{}", serde_json::to_string(&output)?);
     }

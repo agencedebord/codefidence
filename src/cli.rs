@@ -222,6 +222,25 @@ enum Commands {
 
     /// Remove Claude Code hooks
     UninstallHooks,
+
+    /// Handle git hook events (used internally by post-merge, post-checkout, etc.)
+    GitHook {
+        /// Git hook event type: post-merge, post-rebase, post-checkout, post-commit
+        #[arg(long)]
+        event: String,
+
+        /// Old ref (for post-checkout)
+        #[arg(long)]
+        old_ref: Option<String>,
+
+        /// New ref (for post-checkout)
+        #[arg(long)]
+        new_ref: Option<String>,
+
+        /// Branch flag (for post-checkout: 1=branch switch, 0=file checkout)
+        #[arg(long)]
+        branch_flag: Option<u8>,
+    },
 }
 
 #[derive(Subcommand)]
@@ -382,7 +401,29 @@ pub async fn run() -> Result<()> {
             Ok(())
         }
 
-        Commands::InstallHooks => init::hooks::install(&std::env::current_dir()?),
-        Commands::UninstallHooks => init::hooks::uninstall(&std::env::current_dir()?),
+        Commands::InstallHooks => {
+            let cwd = std::env::current_dir()?;
+            init::hooks::install(&cwd)?;
+            init::git_hooks::install(&cwd)?;
+            Ok(())
+        }
+        Commands::UninstallHooks => {
+            let cwd = std::env::current_dir()?;
+            init::hooks::uninstall(&cwd)?;
+            init::git_hooks::uninstall(&cwd)?;
+            Ok(())
+        }
+
+        Commands::GitHook {
+            event,
+            old_ref,
+            new_ref,
+            branch_flag,
+        } => wiki::git_hook::run(
+            &event,
+            old_ref.as_deref(),
+            new_ref.as_deref(),
+            branch_flag,
+        ),
     }
 }

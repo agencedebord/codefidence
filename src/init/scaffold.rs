@@ -184,7 +184,7 @@ fn update_gitignore() -> Result<()> {
         String::new()
     };
 
-    let entries = [".wiki/.env", ".wiki/.file-index.json"];
+    let entries = [".wiki/.env", ".wiki/.file-index.json", ".wiki/.drift-pending"];
     let mut added = false;
 
     for entry in &entries {

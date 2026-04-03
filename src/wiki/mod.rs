@@ -6,6 +6,7 @@ pub mod consult;
 pub mod context;
 pub mod drift;
 pub mod file_index;
+pub mod git_hook;
 pub mod graph;
 pub mod index;
 pub mod manage;
