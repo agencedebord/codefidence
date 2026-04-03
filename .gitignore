@@ -1,4 +1,5 @@
 /target
+.DS_Store
 
 # Project Wiki derived artifacts (runtime-generated, not source)
 .wiki/.file-index.json
