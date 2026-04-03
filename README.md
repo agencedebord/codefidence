@@ -53,7 +53,7 @@ codefidence init --full    # scans codebase, installs hooks, patches CLAUDE.md
 codefidence status
 ```
 
-`init --full` does four things: scans your codebase to bootstrap domain notes, installs Claude Code hooks, patches `CLAUDE.md` (at project root) with wiki instructions, and installs Claude slash commands. Each step is also available separately (`--scan`, `--hooks`).
+`init --full` does five things: scans your codebase to bootstrap domain notes, installs Claude Code hooks, installs git hooks for drift detection (post-merge, post-rewrite, post-checkout, post-commit), patches `CLAUDE.md` (at project root) with wiki instructions, and installs Claude slash commands. Each step is also available separately (`--scan`, `--hooks`).
 
 ### AI analysis
 

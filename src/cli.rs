@@ -28,7 +28,7 @@ enum Commands {
         #[arg(long)]
         scan: bool,
 
-        /// Install Claude Code hooks for automatic wiki integration
+        /// Install hooks for automatic wiki integration (Claude Code + git)
         #[arg(long)]
         hooks: bool,
 
@@ -217,15 +217,15 @@ enum Commands {
     /// Generate memory candidates from a codebase scan
     GenerateCandidates,
 
-    /// Install Claude Code hooks for automatic wiki integration
+    /// Install hooks for automatic wiki integration (Claude Code + git)
     InstallHooks,
 
-    /// Remove Claude Code hooks
+    /// Remove all codefidence hooks (Claude Code + git)
     UninstallHooks,
 
-    /// Handle git hook events (used internally by post-merge, post-checkout, etc.)
+    /// Handle git hook events (used internally by post-merge, post-rewrite, post-checkout, etc.)
     GitHook {
-        /// Git hook event type: post-merge, post-rebase, post-checkout, post-commit
+        /// Git hook event type: post-merge, post-rewrite, post-checkout, post-commit
         #[arg(long)]
         event: String,
 
