@@ -115,6 +115,96 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+  update-homebrew:
+    name: Update Homebrew formula
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download release archives
+        uses: actions/download-artifact@v4
+        with:
+          pattern: archive-*
+          merge-multiple: true
+          path: archives
+
+      - name: Generate Homebrew formula
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+
+          sha_darwin_arm64=$(sha256sum archives/codefidence-aarch64-apple-darwin.tar.gz | cut -d' ' -f1)
+          sha_darwin_x64=$(sha256sum archives/codefidence-x86_64-apple-darwin.tar.gz | cut -d' ' -f1)
+          sha_linux_x64=$(sha256sum archives/codefidence-x86_64-unknown-linux-gnu.tar.gz | cut -d' ' -f1)
+          sha_linux_arm64=$(sha256sum archives/codefidence-aarch64-unknown-linux-gnu.tar.gz | cut -d' ' -f1)
+
+          BASE_URL="https://github.com/agencedebord/codefidence/releases/download/v${VERSION}"
+
+          cat > codefidence.rb << FORMULA
+          class Codefidence < Formula
+            desc "Structured project knowledge wiki for AI-assisted development"
+            homepage "https://github.com/agencedebord/codefidence"
+            version "${VERSION}"
+            license any_of: ["MIT", "Apache-2.0"]
+
+            on_macos do
+              if Hardware::CPU.arm?
+                url "${BASE_URL}/codefidence-aarch64-apple-darwin.tar.gz"
+                sha256 "${sha_darwin_arm64}"
+              else
+                url "${BASE_URL}/codefidence-x86_64-apple-darwin.tar.gz"
+                sha256 "${sha_darwin_x64}"
+              end
+            end
+
+            on_linux do
+              if Hardware::CPU.arm?
+                url "${BASE_URL}/codefidence-aarch64-unknown-linux-gnu.tar.gz"
+                sha256 "${sha_linux_arm64}"
+              else
+                url "${BASE_URL}/codefidence-x86_64-unknown-linux-gnu.tar.gz"
+                sha256 "${sha_linux_x64}"
+              end
+            end
+
+            def install
+              bin.install "codefidence"
+            end
+
+            test do
+              assert_match "codefidence", shell_output("#{bin}/codefidence --version")
+            end
+          end
+          FORMULA
+
+          # Remove leading whitespace from heredoc
+          sed -i 's/^          //' codefidence.rb
+
+      - name: Push formula to homebrew-tap
+        uses: dmnemec/copy_file_to_another_repo_action@main
+        env:
+          API_TOKEN_GITHUB: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        with:
+          source_file: codefidence.rb
+          destination_repo: agencedebord/homebrew-tap
+          destination_folder: Formula
+          user_email: github-actions[bot]@users.noreply.github.com
+          user_name: github-actions[bot]
+          commit_message: "Update codefidence to ${{ github.ref_name }}"
+
+  publish-crate:
+    name: Publish to crates.io
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Publish to crates.io
+        run: cargo publish
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+
   publish-npm:
     name: Publish npm packages
     needs: build
