@@ -33,20 +33,15 @@ pub fn run() -> Result<()> {
         .filter(|n| matches!(n.confidence, Confidence::NeedsValidation))
         .count();
 
-    let decisions = count_decisions()?;
+    let decisions = count_decisions(&wiki_dir)?;
     let stale_notes = find_stale(&notes);
-    let open_questions = count_open_questions()?;
+    let open_questions = count_open_questions(&wiki_dir)?;
 
     // ─── Header ───
     ui::app_header(env!("CARGO_PKG_VERSION"));
     ui::action("Wiki status");
 
     // ─── Health gauge ───
-    let _confirmed_pct = if total_notes > 0 {
-        (confirmed + seen_in_code) as f64 / total_notes as f64
-    } else {
-        0.0
-    };
     ui::header("Health");
     ui::stat_bar("Confirmed", confirmed + seen_in_code, total_notes);
 
@@ -223,14 +218,14 @@ pub fn run() -> Result<()> {
     Ok(())
 }
 
-fn count_decisions() -> Result<usize> {
-    let decisions_dir = Path::new(".wiki/decisions");
+fn count_decisions(wiki_dir: &Path) -> Result<usize> {
+    let decisions_dir = wiki_dir.join("decisions");
     if !decisions_dir.exists() {
         return Ok(0);
     }
 
-    let count = fs::read_dir(decisions_dir)
-        .context("Failed to read .wiki/decisions")?
+    let count = fs::read_dir(&decisions_dir)
+        .context("Failed to read decisions directory")?
         .filter_map(|e| e.ok())
         .filter(|e| e.path().extension().is_some_and(|ext| ext == "md"))
         .count();
@@ -250,14 +245,14 @@ fn find_stale(notes: &[WikiNote]) -> Vec<String> {
         .collect()
 }
 
-fn count_open_questions() -> Result<usize> {
-    let needs_review_path = Path::new(".wiki/_needs-review.md");
+fn count_open_questions(wiki_dir: &Path) -> Result<usize> {
+    let needs_review_path = wiki_dir.join("_needs-review.md");
     if !needs_review_path.exists() {
         return Ok(0);
     }
 
     let content =
-        fs::read_to_string(needs_review_path).context("Failed to read _needs-review.md")?;
+        fs::read_to_string(&needs_review_path).context("Failed to read _needs-review.md")?;
 
     Ok(content
         .lines()

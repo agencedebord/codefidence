@@ -9,7 +9,7 @@ use chrono::Utc;
 use crate::i18n::t;
 use crate::ui;
 use crate::wiki;
-use crate::wiki::common::{capitalize, ensure_wiki_exists, list_domain_names};
+use crate::wiki::common::{capitalize, ensure_wiki_exists, find_wiki_root, list_domain_names};
 use crate::wiki::config;
 
 const DECISION_TEMPLATE: &str = include_str!("../templates/decision.md");
@@ -57,23 +57,21 @@ fn slugify(text: &str, max_len: usize) -> String {
     }
 }
 
-/// Alias for backward compatibility in this module.
-fn list_domains(wiki_dir: &Path) -> Result<Vec<String>> {
-    list_domain_names(wiki_dir)
-}
-
 // ─── Public commands ───
 
 pub fn domain(name: &str) -> Result<()> {
-    domain_in(Path::new(".wiki"), name)
+    let wiki_dir = find_wiki_root()?;
+    domain_in(&wiki_dir, name)
 }
 
 pub fn context(text: &str, domain: Option<&str>) -> Result<()> {
-    context_in(Path::new(".wiki"), text, domain)
+    let wiki_dir = find_wiki_root()?;
+    context_in(&wiki_dir, text, domain)
 }
 
 pub fn decision(text: &str) -> Result<()> {
-    decision_in(Path::new(".wiki"), text)
+    let wiki_dir = find_wiki_root()?;
+    decision_in(&wiki_dir, text)
 }
 
 // ─── Internal implementations (testable with custom wiki dir) ───
@@ -159,7 +157,7 @@ fn context_in(wiki_dir: &Path, text: &str, domain_arg: Option<&str>) -> Result<(
 
     let domain_dir = wiki_dir.join("domains").join(&target_domain);
     if !domain_dir.exists() {
-        let available = list_domains(wiki_dir)?;
+        let available = list_domain_names(wiki_dir)?;
         if available.is_empty() {
             bail!("No domains found. Create one first with `codefidence add domain <name>`.");
         }
@@ -232,7 +230,7 @@ fn decision_in(wiki_dir: &Path, text: &str) -> Result<()> {
 
 /// Try to guess the domain from the text by checking if any domain name appears in it.
 fn guess_domain(wiki_dir: &Path, text: &str) -> Result<String> {
-    let domains = list_domains(wiki_dir)?;
+    let domains = list_domain_names(wiki_dir)?;
 
     if domains.is_empty() {
         bail!("No domains found. Create one first with `codefidence add domain <name>`.");

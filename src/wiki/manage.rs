@@ -3,11 +3,12 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, bail};
 use chrono::Utc;
+use regex::Regex;
 use walkdir::WalkDir;
 
 use crate::ui;
 use crate::wiki;
-use crate::wiki::common::{collect_all_notes, ensure_wiki_exists};
+use crate::wiki::common::{collect_all_notes, ensure_wiki_exists, find_wiki_root};
 use crate::wiki::note::{Confidence, WikiNote};
 
 /// Resolve a target string to a note file path within .wiki/domains/.
@@ -48,22 +49,26 @@ fn today() -> String {
 
 /// Set a note's confidence to `confirmed`.
 pub fn confirm(target: &str) -> Result<()> {
-    confirm_in(Path::new(".wiki"), target)
+    let wiki_dir = find_wiki_root()?;
+    confirm_in(&wiki_dir, target)
 }
 
 /// Mark a domain or note as deprecated.
 pub fn deprecate(target: &str) -> Result<()> {
-    deprecate_in(Path::new(".wiki"), target)
+    let wiki_dir = find_wiki_root()?;
+    deprecate_in(&wiki_dir, target)
 }
 
 /// Rename a domain and update all cross-references.
 pub fn rename_domain(old: &str, new: &str) -> Result<()> {
-    rename_domain_in(Path::new(".wiki"), old, new)
+    let wiki_dir = find_wiki_root()?;
+    rename_domain_in(&wiki_dir, old, new)
 }
 
 /// Import markdown files from a folder into the wiki.
 pub fn import_folder(folder: &str, domain: Option<&str>) -> Result<()> {
-    import_folder_in(Path::new(".wiki"), folder, domain)
+    let wiki_dir = find_wiki_root()?;
+    import_folder_in(&wiki_dir, folder, domain)
 }
 
 // ─── Internal implementations (testable with custom wiki dir) ───
@@ -303,14 +308,17 @@ fn update_domain_references_in_content(content: &str, old: &str, new: &str) -> S
 /// Update markdown links and text references from the old domain to the new domain.
 fn update_cross_references(content: &str, old: &str, new: &str) -> String {
     // Replace path references like `domains/old/` with `domains/new/`
+    // The trailing `/` already prevents partial matches (e.g. `domains/billing/` won't match `domains/billing-extra/`)
     let old_path = format!("domains/{}/", old);
     let new_path = format!("domains/{}/", new);
     let result = content.replace(&old_path, &new_path);
 
-    // Replace `domain: old` in front matter (handles files outside the domain dir)
-    let old_domain_ref = format!("domain: {}", old);
+    // Replace `domain: old` in front matter, anchoring to end-of-line to avoid
+    // partial matches (e.g. renaming `billing` must not affect `billing-extra`)
+    let pattern = format!(r"(?m)^domain:\s+{}$", regex::escape(old));
+    let re = Regex::new(&pattern).expect("invalid domain regex");
     let new_domain_ref = format!("domain: {}", new);
-    result.replace(&old_domain_ref, &new_domain_ref)
+    re.replace_all(&result, new_domain_ref.as_str()).into_owned()
 }
 
 fn import_folder_in(wiki_dir: &Path, folder: &str, domain: Option<&str>) -> Result<()> {
@@ -746,6 +754,22 @@ mod tests {
             result,
             "See [billing](domains/payments/_overview.md) for details.\n"
         );
+    }
+
+    #[test]
+    fn update_cross_references_does_not_match_partial_domain() {
+        // Renaming `billing` must not affect `billing-extra` in paths or frontmatter
+        let content = "---\ndomain: billing-extra\n---\nSee [link](domains/billing-extra/_overview.md)\n";
+        let result = update_cross_references(content, "billing", "payments");
+        assert_eq!(result, content, "partial domain name should not be replaced");
+    }
+
+    #[test]
+    fn update_cross_references_replaces_frontmatter_domain() {
+        let content = "---\ndomain: billing\ntitle: Test\n---\nContent\n";
+        let result = update_cross_references(content, "billing", "payments");
+        assert!(result.contains("domain: payments"));
+        assert!(!result.contains("domain: billing"));
     }
 
     #[test]

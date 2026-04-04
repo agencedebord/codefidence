@@ -6,21 +6,18 @@ use console::style;
 use walkdir::WalkDir;
 
 use crate::ui;
-use crate::wiki::note::{Confidence, WikiNote};
+use crate::wiki::common::{find_wiki_root, style_confidence};
+use crate::wiki::note::WikiNote;
 
 pub fn run(domain: Option<&str>, all: bool) -> Result<()> {
-    let wiki_dir = Path::new(".wiki");
-
-    if !wiki_dir.exists() {
-        bail!("No .wiki/ found. Run `codefidence init` first.");
-    }
+    let wiki_dir = find_wiki_root()?;
 
     if all {
-        show_all_domains(wiki_dir)?;
+        show_all_domains(&wiki_dir)?;
     } else if let Some(name) = domain {
-        show_domain(wiki_dir, name)?;
+        show_domain(&wiki_dir, name)?;
     } else {
-        show_wiki_overview(wiki_dir)?;
+        show_wiki_overview(&wiki_dir)?;
     }
 
     Ok(())
@@ -147,24 +144,7 @@ fn print_domain_note(note: &WikiNote) {
     ui::header(title);
 
     // Confidence level with color
-    let confidence_str = format!("Confidence: {}", note.confidence);
-    match note.confidence {
-        Confidence::Confirmed | Confidence::Verified => {
-            println!("  {}", style(&confidence_str).green());
-        }
-        Confidence::LlmAnalyzed => {
-            println!("  {}", style(&confidence_str).yellow());
-        }
-        Confidence::SeenInCode => {
-            println!("  {}", style(&confidence_str).cyan());
-        }
-        Confidence::Inferred => {
-            println!("  {}", style(&confidence_str).yellow());
-        }
-        Confidence::NeedsValidation => {
-            println!("  {}", style(&confidence_str).red());
-        }
-    }
+    println!("  Confidence: {}", style_confidence(&note.confidence));
 
     // Print content sections
     if !note.content.is_empty() {
@@ -237,6 +217,7 @@ fn extract_sections(content: &str) -> Vec<(String, String)> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::wiki::note::Confidence;
     use std::fs;
     use tempfile::TempDir;
 
