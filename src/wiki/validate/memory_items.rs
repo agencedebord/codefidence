@@ -79,18 +79,16 @@ pub(super) fn check_memory_items(notes: &[WikiNote]) -> (Vec<String>, Vec<String
             if item.sources.is_empty() {
                 warnings.push(format!("{}: item '{}' has no sources", note.path, item.id));
             }
+        }
 
-            // ── Deprecated item is the only active one ──
-            if matches!(item.status, MemoryItemStatus::Deprecated) {
-                let active_count = note
-                    .memory_items
-                    .iter()
-                    .filter(|i| matches!(i.status, MemoryItemStatus::Active))
-                    .count();
-                if active_count == 0 {
-                    warnings.push(format!("{}: all memory items are deprecated", note.path));
-                }
-            }
+        // ── All items deprecated (no active ones) ──
+        if !note.memory_items.is_empty()
+            && note
+                .memory_items
+                .iter()
+                .all(|i| matches!(i.status, MemoryItemStatus::Deprecated))
+        {
+            warnings.push(format!("{}: all memory items are deprecated", note.path));
         }
     }
 
