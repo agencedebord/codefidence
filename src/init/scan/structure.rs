@@ -161,11 +161,21 @@ const LARGE_APP_SUBPACKAGE_THRESHOLD: usize = 4;
 /// domain would only cover ~33% of the codebase, so splitting improves quality.
 const LARGE_APP_FILE_THRESHOLD: usize = 30;
 
+/// Info about a sub-domain within a large app directory.
+/// May itself contain sub-domains (one level of recursive splitting).
+struct SubDomainInfo {
+    #[allow(dead_code)]
+    path: PathBuf,
+    /// If this sub-domain is also "large", maps its own sub-package names to paths.
+    /// When empty, the sub-domain is treated as a single domain.
+    sub_domains: HashMap<String, PathBuf>,
+}
+
 /// Info about a detected top-level app directory.
 struct AppDirInfo {
-    /// If the directory is "large", maps sub-package names to their paths.
+    /// If the directory is "large", maps sub-package names to their info.
     /// When empty, the directory is treated as a single domain (small app).
-    sub_domains: HashMap<String, PathBuf>,
+    sub_domains: HashMap<String, SubDomainInfo>,
 }
 
 /// Detect top-level directories that look like app modules.
@@ -219,16 +229,35 @@ fn detect_app_directories(root: &Path) -> HashMap<String, AppDirInfo> {
             let should_split = sub_packages.len() >= LARGE_APP_SUBPACKAGE_THRESHOLD
                 && total_source_files >= LARGE_APP_FILE_THRESHOLD;
 
-            app_dirs.insert(
-                normalize_domain_name(&name),
-                AppDirInfo {
-                    sub_domains: if should_split {
-                        sub_packages
-                    } else {
-                        HashMap::new()
-                    },
-                },
-            );
+            let sub_domains = if should_split {
+                sub_packages
+                    .into_iter()
+                    .map(|(sub_name, sub_path)| {
+                        // Recursive check: does this sub-domain itself qualify for splitting?
+                        let nested_packages = detect_sub_packages(&sub_path);
+                        let nested_files = count_recursive_source_files(&sub_path);
+                        let nested_split =
+                            nested_packages.len() >= LARGE_APP_SUBPACKAGE_THRESHOLD
+                                && nested_files >= LARGE_APP_FILE_THRESHOLD;
+
+                        (
+                            sub_name,
+                            SubDomainInfo {
+                                path: sub_path,
+                                sub_domains: if nested_split {
+                                    nested_packages
+                                } else {
+                                    HashMap::new()
+                                },
+                            },
+                        )
+                    })
+                    .collect()
+            } else {
+                HashMap::new()
+            };
+
+            app_dirs.insert(normalize_domain_name(&name), AppDirInfo { sub_domains });
         }
     }
 
@@ -328,11 +357,15 @@ fn count_direct_source_files(dir: &Path) -> usize {
 /// If the first path component (relative to root) matches a known app directory,
 /// use that as the domain name. For large app directories that have been split
 /// into sub-domains, the second path component determines the domain name.
+/// Supports recursive splitting: if a sub-domain is itself large, the third
+/// component is used with a qualified name (e.g. "contrib-auth").
 ///
 /// Examples:
 /// - Small app: `accounts/views.py` → domain "accounts"
 /// - Large app: `django/forms/fields.py` → domain "forms"
 /// - Large app root file: `django/__init__.py` → domain "django"
+/// - Nested split: `django/contrib/auth/views.py` → domain "contrib-auth"
+/// - Nested root: `django/contrib/__init__.py` → domain "contrib"
 fn extract_app_domain(
     path: &Path,
     root: &Path,
@@ -353,7 +386,17 @@ fn extract_app_domain(
     if !app_info.sub_domains.is_empty() {
         if let Some(second_component) = components.get(1) {
             let normalized_second = normalize_domain_name(second_component);
-            if app_info.sub_domains.contains_key(&normalized_second) {
+            if let Some(sub_info) = app_info.sub_domains.get(&normalized_second) {
+                // Check for nested splitting (e.g. contrib/auth)
+                if !sub_info.sub_domains.is_empty() {
+                    if let Some(third_component) = components.get(2) {
+                        let normalized_third = normalize_domain_name(third_component);
+                        if sub_info.sub_domains.contains_key(&normalized_third) {
+                            // Qualified name: "contrib-auth"
+                            return Some(format!("{}-{}", normalized_second, normalized_third));
+                        }
+                    }
+                }
                 return Some(normalized_second);
             }
         }
@@ -485,16 +528,25 @@ pub fn relativize(path: &Path, root: &Path) -> String {
 /// When a large app dir like `django/` is split, its sub-package `django/utils/` produces
 /// a domain named "utils". If a separate top-level `utils/` app also exists, we have a
 /// conflict. This function detects such cases and renames the sub-domain to "django-utils".
+///
+/// Also handles nested sub-domains (e.g. "contrib-auth") which are already qualified
+/// and unlikely to conflict, but are checked nonetheless.
 fn resolve_subdomain_conflicts(
     domain_files: &mut HashMap<String, Vec<PathBuf>>,
     app_dirs: &HashMap<String, AppDirInfo>,
     root: &Path,
 ) {
     // Build a map: sub-domain name → parent app dir name
+    // This includes both first-level sub-domains and nested qualified names
     let mut sub_domain_parents: HashMap<String, String> = HashMap::new();
     for (parent_name, info) in app_dirs {
-        for sub_name in info.sub_domains.keys() {
+        for (sub_name, sub_info) in &info.sub_domains {
             sub_domain_parents.insert(sub_name.clone(), parent_name.clone());
+            // Nested sub-domains have qualified names like "contrib-auth"
+            for nested_name in sub_info.sub_domains.keys() {
+                let qualified = format!("{}-{}", sub_name, nested_name);
+                sub_domain_parents.insert(qualified, parent_name.clone());
+            }
         }
     }
 
@@ -1095,6 +1147,89 @@ mod tests {
         assert!(
             has_utils && has_qualified,
             "Expected both 'utils' and 'myframework-utils', found: {:?}",
+            domains.keys().collect::<Vec<_>>()
+        );
+    }
+
+    // ─── Recursive sub-domain splitting ───
+
+    #[test]
+    fn nested_large_subdomain_splits_recursively() {
+        let dir = TempDir::new().unwrap();
+        let app = dir.path().join("myframework");
+        fs::create_dir_all(&app).unwrap();
+        fs::write(app.join("__init__.py"), "").unwrap();
+
+        // Create a "contrib" sub-package that is itself large enough to split.
+        // contrib needs ≥4 sub-packages and ≥30 source files.
+        let contrib = app.join("contrib");
+        fs::create_dir_all(&contrib).unwrap();
+        fs::write(contrib.join("__init__.py"), "").unwrap();
+        for name in &["auth", "admin", "sessions", "messages", "staticfiles"] {
+            create_rich_python_package(&contrib, name);
+        }
+
+        // Also create other sub-packages at the app level to trigger first-level split
+        // (app needs ≥4 sub-packages total)
+        for name in &["forms", "db", "http"] {
+            create_rich_python_package(&app, name);
+        }
+
+        let (_files, domains) = discover_structure(dir.path()).unwrap();
+
+        // contrib should be recursively split into "contrib-auth", "contrib-admin", etc.
+        for sub in &["contrib-auth", "contrib-admin", "contrib-sessions", "contrib-messages", "contrib-staticfiles"] {
+            assert!(
+                domains.contains_key(*sub),
+                "Expected nested sub-domain '{}', found: {:?}",
+                sub,
+                domains.keys().collect::<Vec<_>>()
+            );
+        }
+
+        // First-level sub-domains should also exist
+        for sub in &["forms", "db", "http"] {
+            assert!(
+                domains.contains_key(*sub),
+                "Expected first-level sub-domain '{}', found: {:?}",
+                sub,
+                domains.keys().collect::<Vec<_>>()
+            );
+        }
+    }
+
+    #[test]
+    fn nested_small_subdomain_stays_single() {
+        let dir = TempDir::new().unwrap();
+        let app = dir.path().join("myframework");
+        fs::create_dir_all(&app).unwrap();
+        fs::write(app.join("__init__.py"), "").unwrap();
+
+        // Create a "contrib" sub-package that is too small to split
+        // (only 3 sub-packages, below threshold of 4)
+        let contrib = app.join("contrib");
+        fs::create_dir_all(&contrib).unwrap();
+        fs::write(contrib.join("__init__.py"), "").unwrap();
+        for name in &["auth", "admin", "sessions"] {
+            create_rich_python_package(&contrib, name);
+        }
+
+        // Other sub-packages at app level
+        for name in &["forms", "db", "http", "views"] {
+            create_rich_python_package(&app, name);
+        }
+
+        let (_files, domains) = discover_structure(dir.path()).unwrap();
+
+        // contrib should remain a single domain (not split)
+        assert!(
+            domains.contains_key("contrib"),
+            "Expected 'contrib' as single domain, found: {:?}",
+            domains.keys().collect::<Vec<_>>()
+        );
+        assert!(
+            !domains.contains_key("contrib-auth"),
+            "contrib should NOT be split (only 3 sub-packages), found: {:?}",
             domains.keys().collect::<Vec<_>>()
         );
     }
