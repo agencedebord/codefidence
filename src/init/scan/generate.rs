@@ -1,5 +1,6 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
+use crate::graph_utils::transitive_reduce;
 use crate::i18n::t;
 use crate::init::analyze::LlmAnalysis;
 use crate::wiki::common::capitalize;
@@ -167,37 +168,40 @@ pub fn generate_domain_overview(
     sections.join("\n\n")
 }
 
-/// Generate a Mermaid dependency graph.
+/// Generate a Mermaid dependency graph with transitive reduction.
 pub fn generate_graph(domains: &[DomainInfo], lang: &str) -> String {
+    // Build adjacency map and apply transitive reduction
+    let mut adj: HashMap<String, HashSet<String>> = HashMap::new();
+    for domain in domains {
+        let entry = adj.entry(domain.name.clone()).or_default();
+        for dep in &domain.dependencies {
+            entry.insert(dep.clone());
+        }
+    }
+    transitive_reduce(&mut adj);
+
     let mut mermaid_lines = Vec::new();
 
     for domain in domains {
-        for dep in &domain.dependencies {
-            mermaid_lines.push(format!("    {} --> {}", domain.name, dep));
+        if let Some(deps) = adj.get(&domain.name) {
+            for dep in deps {
+                mermaid_lines.push(format!("    {} --> {}", domain.name, dep));
+            }
         }
     }
 
-    // Also add isolated domains (no deps, no reverse deps)
-    let connected: HashSet<&str> = domains
-        .iter()
-        .flat_map(|d| {
-            let mut names = vec![d.name.as_str()];
-            names.extend(d.dependencies.iter().map(|s| s.as_str()));
-            names
-        })
-        .filter(|name| {
-            domains.iter().any(|d| {
-                d.name == *name
-                    && (!d.dependencies.is_empty()
-                        || domains
-                            .iter()
-                            .any(|other| other.dependencies.contains(&d.name)))
-            })
-        })
+    // Also add isolated domains (no outgoing deps after reduction, no incoming deps)
+    let has_incoming: HashSet<&str> = adj
+        .values()
+        .flat_map(|targets| targets.iter().map(|s| s.as_str()))
         .collect();
 
     for domain in domains {
-        if !connected.contains(domain.name.as_str()) && domain.dependencies.is_empty() {
+        let has_outgoing = adj
+            .get(&domain.name)
+            .map(|s| !s.is_empty())
+            .unwrap_or(false);
+        if !has_outgoing && !has_incoming.contains(domain.name.as_str()) {
             mermaid_lines.push(format!("    {}", domain.name));
         }
     }

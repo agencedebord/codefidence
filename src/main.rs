@@ -1,4 +1,5 @@
 mod cli;
+mod graph_utils;
 mod i18n;
 mod init;
 mod ui;

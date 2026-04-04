@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::sync::LazyLock;
 
@@ -6,6 +6,7 @@ use anyhow::{Context, Result};
 use chrono::Utc;
 use regex::Regex;
 
+use crate::graph_utils::transitive_reduce;
 use crate::i18n::t;
 use crate::ui;
 use crate::wiki::common;
@@ -99,6 +100,23 @@ pub fn run() -> Result<()> {
     }
 
     all_domains.sort();
+
+    // 2b. Apply transitive reduction to simplify the graph
+    let mut adj: HashMap<String, HashSet<String>> = HashMap::new();
+    for (source, targets) in &dependency_map {
+        let entry = adj.entry(source.clone()).or_default();
+        for (target, _) in targets {
+            entry.insert(target.clone());
+        }
+    }
+    transitive_reduce(&mut adj);
+
+    // Remove edges that were eliminated by transitive reduction
+    for (source, targets) in dependency_map.iter_mut() {
+        if let Some(reduced) = adj.get(source) {
+            targets.retain(|(target, _)| reduced.contains(target));
+        }
+    }
 
     // 3. Count connections per domain for styling
     let mut connection_count: HashMap<String, usize> = HashMap::new();
