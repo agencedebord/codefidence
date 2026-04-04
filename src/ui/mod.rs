@@ -7,8 +7,6 @@ const MARKER_WARNING: &str = "▲";
 const MARKER_ERROR: &str = "✗";
 const MARKER_INFO: &str = "●";
 const MARKER_STEP: &str = "├";
-#[allow(dead_code)] // Reserved for future use in multi-step flows
-const MARKER_STEP_LAST: &str = "└";
 const MARKER_START: &str = "┌";
 const MARKER_DIAMOND: &str = "◆";
 
@@ -114,12 +112,6 @@ pub fn step(msg: &str) {
     eprintln!("{}  {}", style(MARKER_STEP).dim(), msg);
 }
 
-/// Print the last step within an action.
-#[allow(dead_code)] // Reserved for future multi-step flows
-pub fn step_last(msg: &str) {
-    eprintln!("{}  {}", style(MARKER_STEP_LAST).dim(), msg);
-}
-
 /// Print a success message.
 pub fn success(msg: &str) {
     eprintln!(
@@ -161,28 +153,6 @@ pub fn stat(label: &str, value: &str) {
         style("│").dim(),
         style(label).dim(),
         style(value).cyan().bold()
-    );
-}
-
-/// Print a stat line with warning color.
-#[allow(dead_code)] // Reserved for future validate/status enhancements
-pub fn stat_warn(label: &str, value: &str) {
-    eprintln!(
-        "{}  {:<24} {}",
-        style("│").dim(),
-        style(label).dim(),
-        style(value).yellow().bold()
-    );
-}
-
-/// Print a stat line with error color.
-#[allow(dead_code)] // Reserved for future validate/status enhancements
-pub fn stat_error(label: &str, value: &str) {
-    eprintln!(
-        "{}  {:<24} {}",
-        style("│").dim(),
-        style(label).dim(),
-        style(value).red().bold()
     );
 }
 
@@ -310,14 +280,6 @@ pub fn summary_box(lines: &[String]) {
 pub fn verbose(msg: &str) {
     if crate::verbosity::is_verbose() {
         eprintln!("  {} {}", style(MARKER_INFO).dim(), style(msg).dim());
-    }
-}
-
-/// Print a debug message (only at -vv or higher).
-#[allow(dead_code)] // Available for use at -vv verbosity
-pub fn debug(msg: &str) {
-    if crate::verbosity::is_debug() {
-        eprintln!("  {} {}", style("DBG").dim().cyan(), style(msg).dim());
     }
 }
 

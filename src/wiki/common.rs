@@ -6,7 +6,9 @@ use anyhow::{Context, Result, bail};
 use regex::Regex;
 use walkdir::WalkDir;
 
-use crate::wiki::note::WikiNote;
+use console::style;
+
+use crate::wiki::note::{Confidence, WikiNote};
 
 /// Regex for markdown links: `[text](target)`.
 pub static LINK_RE: LazyLock<Regex> =
@@ -103,6 +105,18 @@ pub fn list_domain_names(wiki_dir: &Path) -> Result<Vec<String>> {
 
     names.sort();
     Ok(names)
+}
+
+/// Style a confidence level with the appropriate color.
+pub fn style_confidence(confidence: &Confidence) -> console::StyledObject<String> {
+    let text = confidence.to_string();
+    match confidence {
+        Confidence::Confirmed | Confidence::Verified => style(text).green(),
+        Confidence::LlmAnalyzed => style(text).yellow(),
+        Confidence::SeenInCode => style(text).cyan(),
+        Confidence::Inferred => style(text).yellow(),
+        Confidence::NeedsValidation => style(text).red(),
+    }
 }
 
 /// Check that a `.wiki/` directory exists, bail otherwise.

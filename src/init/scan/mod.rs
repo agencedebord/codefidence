@@ -180,7 +180,7 @@ pub fn run() -> Result<ScanResult> {
     let domain_names: Vec<String> = domains_map.keys().cloned().collect();
     for (i, name) in domain_names.iter().enumerate() {
         let files = &domains_map[name];
-        let extracted = details::extract_details(files, &project_root);
+        let extracted = details::extract_details(files);
 
         let deps = dependency_graph.get(name).cloned().unwrap_or_default();
 

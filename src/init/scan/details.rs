@@ -59,7 +59,7 @@ pub struct DomainDetails {
 
 // ─── Detail extraction ───
 
-pub fn extract_details(files: &[PathBuf], _root: &Path) -> DomainDetails {
+pub fn extract_details(files: &[PathBuf]) -> DomainDetails {
     let results: Vec<DomainDetails> = files
         .par_iter()
         .filter_map(|path| {

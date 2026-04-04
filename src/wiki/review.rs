@@ -6,7 +6,7 @@ use console::style;
 use dialoguer::{Confirm, Input, Select};
 
 use crate::ui;
-use crate::wiki::common::{ensure_wiki_exists, list_domain_names};
+use crate::wiki::common::{ensure_wiki_exists, list_domain_names, style_confidence};
 use crate::wiki::note::{Confidence, MemoryItem, MemoryItemStatus, MemoryItemType, WikiNote};
 
 // ── Types ──────────────────────────────────────────────────────────
@@ -316,17 +316,6 @@ fn display_item(item: &MemoryItem) {
         style_confidence(&item.confidence),
     );
     eprintln!("  \"{}\"", &item.text);
-}
-
-fn style_confidence(confidence: &Confidence) -> console::StyledObject<String> {
-    let text = confidence.to_string();
-    match confidence {
-        Confidence::Confirmed | Confidence::Verified => style(text).green(),
-        Confidence::LlmAnalyzed => style(text).yellow(),
-        Confidence::SeenInCode => style(text).cyan(),
-        Confidence::Inferred => style(text).yellow(),
-        Confidence::NeedsValidation => style(text).red(),
-    }
 }
 
 // ── Prompts ────────────────────────────────────────────────────────
